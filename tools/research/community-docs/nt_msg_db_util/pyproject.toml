@@ -1,0 +1,21 @@
+[project]
+name = "nt_msg_db_util"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "bbpb>=1.4.2",
+    "pip-licenses>=5.5.5",
+    "protobuf>=5.26",
+    "python-dotenv>=1.2.2",
+    "sqlcipher3>=0.6.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.15.19",
+]
+
