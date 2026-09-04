@@ -251,3 +251,42 @@ Probe 已实现 `test-media` 命令对上述字段抽样验证（对解密副本
 | sqlcipher/sqlcipher 源码 (src/sqlcipher.c) | 页面布局、KDF、HMAC 的权威定义 | master |
 
 （完整本地副本见 `tools/research/community-docs/`，含原文档 CC BY-NC-SA 4.0 授权说明。）
+
+---
+
+## 12. Phase 2 实现记录（2026-09-05）
+
+在 Phase 0 结论（PARTIAL，key 需用户供给）之上完成了存储分析与预演清理的核心能力：
+
+### 已实现
+
+- **统一索引**（`NTQlean.Core.MediaIndexBuilder`）：将解密副本中的
+  `files_in_chat_table` / `file_table`（含列签名探测的未知表）归一为 `media` 表，
+  附带 `nt_data` 全量文件清单、孤儿分析（无数据库引用文件）、
+  群名提取（递归 protobuf 扫描 group_info，启发式、仅展示用）、
+  大小单位自动校准（KB vs 字节，依据与实际文件比对）。
+- **布尔选择引擎**（`SelectionEngine`）：时间/大小/会话/类型/置信度组合筛选；
+  表达式编译器支持 `AND / OR / NOT` 与括号（`size >= 10MB AND time < 2025-01-01
+  AND NOT chat == 123456`），编译为索引 SQL；孤儿文件可显式纳入。
+- **预演清理**（`CleanupPlan`）：文本 + JSON 报告、按类型/会话/置信度分解、CSV 导出。
+- **回收站执行器**（`CleanupExecutor`）：`SHFileOperationW + FOF_ALLOWUNDO`，
+  先写 manifest；需要显式确认标志 + nt_data 根白名单；**仅 GUI 可达，测试从不调用**。
+- **WPF UI**（`NTQlean.App`）：数据源发现 → key 输入（内存）→ 索引进度 →
+  筛选面板（类型/置信度/时间预设/大小/会话排除/表达式）→ 虚拟化结果列表 →
+  低开销缩略图预览（复用 NTQQ 自带 `Thumb\*_720.jpg / *_0.png`，240px 解码 + LRU）
+  → 预演报告 → 双重确认回收站清理。
+
+### 验证方式（遵守"测试不做实际清理"）
+
+- 合成数据集成测试（`tools/research/make_fixtures.py`）：5 条媒体引用
+  （名称引用/路径引用/KB 单位/大小不符/文件缺失）+ 2 个孤儿文件 + 群名提取；
+  `analyze` → `select` 表达式矩阵（大小/时间/NOT 会话/OR 组合/排除标志）全部符合预期；
+  **预演后文件清单 6/6 原封不动**。
+- WPF 启动冒烟：窗口渲染正常（截图留档），无崩溃。
+- 真实账号数据的完整 GUI 流程依赖用户 key（见 §4），属预期边界。
+
+### 已知边界 / 下一步
+
+- 索引未覆盖 nt_msg 大库（消息级统计需要时再引入，13 GB 解密约分钟级）。
+- emoji.db / file_assistant.db 的表结构未逐列核对，依赖列签名探测，命中率待真库验证。
+- GUI 全流程自动化测试未做（需要 UIA 驱动），当前以 CLI 同引擎测试 + 启动冒烟覆盖。
