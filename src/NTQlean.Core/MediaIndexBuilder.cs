@@ -139,7 +139,7 @@ public static partial class MediaIndexBuilder
 
         // 4. orphan analysis: nt_data files not referenced by any media row.
         progress?.Report("未引用文件（孤儿）分析 …");
-        Exec(index, "CREATE TABLE orphan_nt_files(rel_path TEXT PRIMARY KEY, size INTEGER)");
+        Exec(index, "CREATE TABLE orphan_nt_files(rel_path TEXT PRIMARY KEY, name TEXT, size INTEGER, mtime INTEGER, domain TEXT)");
         var referenced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         using (var cmd = index.CreateCommand())
         {
@@ -155,21 +155,26 @@ public static partial class MediaIndexBuilder
         }
         long orphanBytes = 0;
         var ins = index.CreateCommand();
-        ins.CommandText = "INSERT INTO orphan_nt_files(rel_path, size) VALUES ($p,$s)";
+        ins.CommandText = "INSERT INTO orphan_nt_files(rel_path,name,size,mtime,domain) VALUES ($p,$n,$s,$m,$d)";
         var p2 = ins.Parameters.Add("$p", SqliteType.Text);
+        var n2 = ins.Parameters.Add("$n", SqliteType.Text);
         var s2 = ins.Parameters.Add("$s", SqliteType.Integer);
+        var m2 = ins.Parameters.Add("$m", SqliteType.Integer);
+        var d2 = ins.Parameters.Add("$d", SqliteType.Text);
         using (var cmd = index.CreateCommand())
         {
-            cmd.CommandText = "SELECT rel_path, size FROM nt_files ORDER BY rel_path";
+            cmd.CommandText = "SELECT rel_path, name, size, mtime, domain FROM nt_files ORDER BY rel_path";
             using var r = cmd.ExecuteReader();
             while (r.Read())
             {
                 var rel = r.GetString(0);
-                var name = rel.Contains('/') ? rel[(rel.LastIndexOf('/') + 1)..] : rel;
+                var name = r.GetString(1);
+                var mtime = r.GetInt64(3);
+                var domain = r.GetString(4);
                 if (referenced.Contains(rel) || referenced.Contains(name)) continue;
-                var sz = r.GetInt64(1);
+                var sz = r.GetInt64(2);
                 orphanBytes += sz;
-                p2.Value = rel; s2.Value = sz;
+                p2.Value = rel; n2.Value = name; s2.Value = sz; m2.Value = mtime; d2.Value = domain;
                 ins.ExecuteNonQuery();
             }
         }
@@ -182,8 +187,13 @@ public static partial class MediaIndexBuilder
 
         using (var meta = index.CreateCommand())
         {
-            meta.CommandText = "INSERT OR REPLACE INTO meta(key,value) VALUES ('built_at',$t)";
-            meta.Parameters.AddWithValue("$t", DateTimeOffset.Now.ToUnixTimeSeconds().ToString());
+            meta.CommandText = "INSERT OR REPLACE INTO meta(key,value) VALUES ($k,$v)";
+            meta.Parameters.AddWithValue("$k", "built_at");
+            meta.Parameters.AddWithValue("$v", DateTimeOffset.Now.ToUnixTimeSeconds().ToString());
+            meta.ExecuteNonQuery();
+
+            meta.Parameters["$k"].Value = "nt_data_root";
+            meta.Parameters["$v"].Value = Path.GetFullPath(ntDataDir);
             meta.ExecuteNonQuery();
         }
         tx.Commit();

@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTQlean.Core", "src\NTQlean
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTQlean.Probe", "src\NTQlean.Probe\NTQlean.Probe.csproj", "{C151147F-F603-4B3A-95F4-91F64D8C412F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NTQlean.App", "src\NTQlean.App\NTQlean.App.csproj", "{682C6F21-26D2-4249-808E-28B01EF5EFCF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,9 +28,14 @@ Global
 		{C151147F-F603-4B3A-95F4-91F64D8C412F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C151147F-F603-4B3A-95F4-91F64D8C412F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C151147F-F603-4B3A-95F4-91F64D8C412F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{682C6F21-26D2-4249-808E-28B01EF5EFCF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{682C6F21-26D2-4249-808E-28B01EF5EFCF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{682C6F21-26D2-4249-808E-28B01EF5EFCF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{682C6F21-26D2-4249-808E-28B01EF5EFCF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{2895B9BE-DA20-4126-8F1C-674393CB327A} = {315AA29E-A29D-497D-BACC-CD59EADE2DEA}
 		{C151147F-F603-4B3A-95F4-91F64D8C412F} = {315AA29E-A29D-497D-BACC-CD59EADE2DEA}
+		{682C6F21-26D2-4249-808E-28B01EF5EFCF} = {315AA29E-A29D-497D-BACC-CD59EADE2DEA}
 	EndGlobalSection
 EndGlobal

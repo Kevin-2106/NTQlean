@@ -11,6 +11,7 @@ internal static class SelectCommand
         var confs = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "exact", "strong" };
         long? timeFrom = null, timeTo = null, sizeMin = null, sizeMax = null;
         var chatFilterActive = false;
+        var includeOrphans = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -26,6 +27,7 @@ internal static class SelectCommand
                 case "--to": timeTo = ParseDate(args[++i]) + 86399; break;
                 case "--size-min": sizeMin = ParseSize(args[++i]); break;
                 case "--size-max": sizeMax = ParseSize(args[++i]); break;
+                case "--include-orphans": includeOrphans = true; break;
                 case "--json": jsonOut = args[++i]; break;
             }
         }
@@ -50,6 +52,7 @@ internal static class SelectCommand
             SizeMin = sizeMin,
             SizeMax = sizeMax,
             Expression = expr,
+            IncludeOrphans = includeOrphans,
         };
 
         var selection = SelectionEngine.Query(indexPath, options);

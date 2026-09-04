@@ -32,6 +32,13 @@ public sealed record SelectionOptions
     /// </summary>
     public string? Expression { get; init; }
 
+    /// <summary>
+    /// Include unreferenced (orphan) nt_data files. These have confidence
+    /// "orphan" and no chat; they are only ever cleaned up with explicit
+    /// user opt-in.
+    /// </summary>
+    public bool IncludeOrphans { get; init; }
+
     public bool IsValidForDeletion => Confidences.All(c =>
         c.Equals("exact", StringComparison.OrdinalIgnoreCase) ||
         c.Equals("strong", StringComparison.OrdinalIgnoreCase));
@@ -74,6 +81,22 @@ public static class SelectionEngine
         var byConf = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         long total = 0, resolvable = 0, resolvableBytes = 0;
 
+        void Accumulate(SelectionRow row)
+        {
+            var size = row.ActualSize ?? row.SizeBytes ?? 0;
+            total += size;
+            if (!string.IsNullOrEmpty(row.AbsPath))
+            {
+                resolvable++;
+                resolvableBytes += size;
+            }
+            byKind[row.Kind] = byKind.GetValueOrDefault(row.Kind) + size;
+            var chatLabel = row.ChatName is { Length: > 0 } ? $"{row.ChatId} ({row.ChatName})" : (row.ChatId is { Length: > 0 } ? row.ChatId : "(无会话)");
+            byChat[chatLabel] = byChat.GetValueOrDefault(chatLabel) + size;
+            byConf[row.Confidence] = byConf.GetValueOrDefault(row.Confidence) + size;
+            rows.Add(row);
+        }
+
         using (var cmd = conn.CreateCommand())
         {
             cmd.CommandText = $"""
@@ -98,19 +121,45 @@ public static class SelectionEngine
                     r.GetString(13), r.IsDBNull(14) ? null : r.GetString(14),
                     r.IsDBNull(15) ? null : r.GetString(15), r.GetString(16), r.GetString(17),
                     r.GetString(18), r.IsDBNull(19) ? null : r.GetInt64(19));
-                rows.Add(row);
+                Accumulate(row);
+            }
+        }
 
-                var size = row.ActualSize ?? row.SizeBytes ?? 0;
-                total += size;
-                if (!string.IsNullOrEmpty(row.AbsPath))
-                {
-                    resolvable++;
-                    resolvableBytes += size;
-                }
-                byKind[row.Kind] = byKind.GetValueOrDefault(row.Kind) + size;
-                var chatLabel = row.ChatName is { Length: > 0 } ? $"{row.ChatId} ({row.ChatName})" : (row.ChatId is { Length: > 0 } ? row.ChatId : "(无会话)");
-                byChat[chatLabel] = byChat.GetValueOrDefault(chatLabel) + size;
-                byConf[row.Confidence] = byConf.GetValueOrDefault(row.Confidence) + size;
+        // Orphan (unreferenced) files, when explicitly included. They carry
+        // confidence "orphan" and no chat; the executor's allowlist still applies.
+        if (options.IncludeOrphans)
+        {
+            var orphanWhere = new List<string>();
+            if (options.Kinds.Count > 0)
+                orphanWhere.Add($"domain IN ({QuoteList(options.Kinds.Select(KindToDomain))})");
+            if (options.TimeFrom is { } of) orphanWhere.Add($"mtime >= {of}");
+            if (options.TimeTo is { } ot) orphanWhere.Add($"mtime <= {ot}");
+            if (options.SizeMin is { } omin) orphanWhere.Add($"size >= {omin}");
+            if (options.SizeMax is { } omax) orphanWhere.Add($"size <= {omax}");
+
+            var ntRoot = GetMeta(conn, "nt_data_root") ?? "";
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText =
+                "SELECT rel_path, name, size, mtime, domain FROM orphan_nt_files " +
+                (orphanWhere.Count > 0 ? "WHERE " + string.Join(" AND ", orphanWhere) : "") +
+                " ORDER BY size DESC";
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                var rel = r.GetString(0);
+                var name = r.GetString(1);
+                var size = r.GetInt64(2);
+                var mtime = r.GetInt64(3);
+                var domain = r.GetString(4);
+                var kind = DomainToKind(domain);
+                var abs = string.IsNullOrEmpty(ntRoot) ? "" : Path.Combine(ntRoot, rel.Replace('/', Path.DirectorySeparatorChar));
+                var row = new SelectionRow(
+                    -1L - rows.Count, kind, "", null, null,
+                    name, rel, File.Exists(abs) ? abs : "", "",
+                    size, size, File.Exists(abs) ? size : null,
+                    mtime, "file", null, null,
+                    "orphan", "orphan", "orphan_nt_files", null);
+                Accumulate(row);
             }
         }
 
@@ -125,6 +174,60 @@ public static class SelectionEngine
             ByConfidence = byConf,
             WhereSql = where,
         };
+    }
+
+    private static string? GetMeta(SqliteConnection conn, string key)
+    {
+        try
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT value FROM meta WHERE key = $k";
+            cmd.Parameters.AddWithValue("$k", key);
+            return cmd.ExecuteScalar() as string;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    internal static string DomainToKind(string domain) => domain.ToUpperInvariant() switch
+    {
+        "PIC" => "image",
+        "VIDEO" => "video",
+        "FILE" => "file",
+        "PTT" => "ptt",
+        _ => "other",
+    };
+
+    internal static string KindToDomain(string kind) => kind.ToLowerInvariant() switch
+    {
+        "image" => "Pic",
+        "video" => "Video",
+        "file" => "File",
+        "ptt" => "Ptt",
+        _ => "",
+    };
+
+    public sealed record ChatInfo(string ChatId, string? DisplayName, long Items, long Bytes);
+
+    /// <summary>Chat list with media footprint for the GUI picker.</summary>
+    public static List<ChatInfo> QueryChats(string indexPath)
+    {
+        var list = new List<ChatInfo>();
+        using var conn = NtqSqlite.OpenReadOnly(indexPath);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT c.chat_id, c.display_name, COUNT(m.item_id),
+                   COALESCE(SUM(COALESCE(m.actual_size, m.size_bytes, 0)), 0)
+            FROM chats c LEFT JOIN media m ON m.chat_id = c.chat_id
+            GROUP BY c.chat_id, c.display_name
+            ORDER BY 4 DESC
+            """;
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+            list.Add(new ChatInfo(r.GetString(0), r.IsDBNull(1) ? null : r.GetString(1), r.GetInt64(2), r.GetInt64(3)));
+        return list;
     }
 
     public static string BuildWhere(SelectionOptions o)
