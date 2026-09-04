@@ -104,7 +104,7 @@ internal static class OpenDbCommand
 
                 if (!result.Success)
                 {
-                    ProbeLog.Unconfirmed($"failed: {result.FailureReason}");
+                    ProbeLog.Unconfirmed($"failed: {result.Error}");
                     continue;
                 }
 

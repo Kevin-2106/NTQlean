@@ -39,7 +39,7 @@ public sealed class SqlCipherDecryptResult
     public long PagesHmacBad { get; init; }
     public bool RawKeyMode { get; init; }
     public bool Truncated { get; init; }
-    public string? FailureReason { get; init; }
+    public string? Error { get; init; }
 }
 
 /// <summary>
@@ -79,7 +79,7 @@ public static class SqlCipherDecryptor
         }
         catch (Exception ex)
         {
-            return new SqlCipherDecryptResult { Success = false, FailureReason = ex.Message, Config = config };
+            return new SqlCipherDecryptResult { Success = false, Error = ex.Message, Config = config };
         }
     }
 
@@ -107,7 +107,7 @@ public static class SqlCipherDecryptor
         var fi = new FileInfo(encryptedCopyPath);
         var payloadLen = fi.Length - header;
         if (payloadLen <= 0)
-            return new SqlCipherDecryptResult { Success = false, FailureReason = "file has no data past the NTQQ header", Config = config };
+            return new SqlCipherDecryptResult { Success = false, Error = "file has no data past the NTQQ header", Config = config };
 
         var pages = payloadLen / pageSz;
         var truncated = false;
@@ -120,7 +120,7 @@ public static class SqlCipherDecryptor
             return new SqlCipherDecryptResult
             {
                 Success = false,
-                FailureReason = $"payload size {payloadLen} is not a multiple of page size {pageSz} " +
+                Error = $"payload size {payloadLen} is not a multiple of page size {pageSz} " +
                                 $"(NTQQ header assumed {header} bytes)",
                 Config = config,
             };
@@ -223,7 +223,7 @@ public static class SqlCipherDecryptor
             return new SqlCipherDecryptResult
             {
                 Success = false,
-                FailureReason = "decrypted page 1 does not contain a valid SQLite header " +
+                Error = "decrypted page 1 does not contain a valid SQLite header " +
                                 $"(wrong key or wrong cipher parameters); pt16..48={preview}",
                 Config = config,
                 RawKeyMode = rawMode,

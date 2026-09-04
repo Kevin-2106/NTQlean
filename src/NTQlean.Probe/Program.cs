@@ -14,6 +14,8 @@ return args[0] switch
     "inspect-db" => InspectDbCommand.Run(args.Skip(1).ToArray()),
     "open-db" => OpenDbCommand.Run(args.Skip(1).ToArray()),
     "test-media" => TestMediaCommand.Run(args.Skip(1).ToArray()),
+    "analyze" => AnalyzeCommand.Run(args.Skip(1).ToArray()),
+    "select" => SelectCommand.Run(args.Skip(1).ToArray()),
     "help" or "--help" or "-h" => PrintUsage(),
     _ => Unknown(args[0]),
 };
@@ -37,6 +39,26 @@ static int PrintUsage()
           test-media <plain-db> <nt_data_dir>
                                        Probe media metadata tables in a decrypted copy and
                                        try to map samples to files under nt_data
+          analyze                      Decrypt account DBs (needs key) and build the index
+          select                       Query the index with time/size/chat criteria (dry run!)
+
+        analyze options:
+          --db-dir <nt_db>       Account nt_db directory (QQ originals, read-only)
+          --decrypted-dir <dir>  Existing plain databases instead of nt_db (research/fixtures)
+          --data-dir <nt_data>   Media directory for file mapping
+          --workspace <dir>      Workspace location (default: %LOCALAPPDATA%\NTQlean\workspace-*)
+          --key <key>            Account key (prefer interactive entry)
+          --force                Re-decrypt even if plain copies exist
+
+        select options:
+          --workspace <dir>      Workspace with index.db
+          --expr "<expr>"        Boolean expression: size >= 10MB AND time < 2025-01-01 AND NOT chat == 123
+          --kind <list>          image,video,file,ptt,other
+          --chat / --exclude-chat <ids>   Chat id include/exclude (NOT)
+          --from / --to <date>   Time range (yyyy-MM-dd)
+          --size-min / --size-max <n>     Size range (supports KB/MB/GB suffix)
+          --conf <list>          exact,strong,heuristic (default: exact,strong)
+          --json <path>          Also save the dry-run report here
 
         open-db options:
           --key <key>      Database key (prefer interactive entry; avoids shell history)
