@@ -99,6 +99,83 @@ public partial class MainWindow : Window
 
     // ═══════════ ② 索引 ═══════════
 
+    private async void OnDumpKeyClick(object sender, RoutedEventArgs e)
+    {
+        var dbDir = DbDirBox.Text;
+        if (!Directory.Exists(dbDir))
+        {
+            MessageBox.Show("请先在「① 数据源」选择有效的 nt_db 目录。", "NTQlean",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        string? probeDb = DecryptService.AccountDbs
+            .Select(n => Path.Combine(dbDir, n))
+            .FirstOrDefault(p => File.Exists(p) && !DecryptService.IsPlainSqlite(p));
+        if (probeDb is null)
+        {
+            MessageBox.Show("nt_db 中没有加密的账号数据库。", "NTQlean",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        DumpKeyButton.IsEnabled = false;
+        SetStatus("扫描 QQ 进程内存（只读）…");
+        try
+        {
+            var specs = await Task.Run(() => KeyDumper.DumpAllKeyspecs(null, out _, out _));
+            var key = await Task.Run(() => ValidateKey(probeDb, specs));
+            if (key is null)
+            {
+                MessageBox.Show("未找到与该账号匹配的 key。\n请确认 QQ 正在运行且已登录该账号。",
+                    "NTQlean", MessageBoxButton.OK, MessageBoxImage.Warning);
+                SetStatus("未找到 key");
+                return;
+            }
+            KeyBox.Password = key; // stays in memory only
+            SetStatus("key 已提取（仅内存）");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"提取失败: {ex.Message}", "NTQlean", MessageBoxButton.OK, MessageBoxImage.Error);
+            SetStatus("提取失败");
+        }
+        finally
+        {
+            DumpKeyButton.IsEnabled = true;
+        }
+    }
+
+    private static string? ValidateKey(string encryptedDb, IReadOnlyDictionary<string, List<string>> specs)
+    {
+        try
+        {
+            var salt = KeyDumper.ReadSalt(encryptedDb);
+            if (!specs.TryGetValue(Convert.ToHexString(salt), out var keys)) return null;
+            var tempDir = Path.Combine(Path.GetTempPath(), "NTQlean", "keycheck-" + Guid.NewGuid().ToString("N")[..8]);
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                var cfg = new SqlCipherConfig { PageSize = 4096, KdfIterations = 4000, KdfUseSha512 = true, Hmac = HmacAlgorithm.HmacSha1 };
+                foreach (var key in keys)
+                {
+                    if (SqlCipherDecryptor.DecryptCopy(encryptedDb,
+                            Path.Combine(tempDir, "probe.plain.db"), key, cfg, maxPages: 1).Success)
+                        return key;
+                }
+            }
+            finally
+            {
+                try { Directory.Delete(tempDir, recursive: true); } catch { }
+            }
+        }
+        catch
+        {
+            // fall through
+        }
+        return null;
+    }
+
     private async void OnBuildIndexClick(object sender, RoutedEventArgs e)
     {
         var force = (sender as Button)?.Tag as string == "force";

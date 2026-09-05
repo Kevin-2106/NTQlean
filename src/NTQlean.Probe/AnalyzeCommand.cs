@@ -8,6 +8,8 @@ internal static class AnalyzeCommand
         string? dbDir = null, dataDir = null, workspaceDir = null, decryptedDir = null;
         string? key = null;
         var force = false;
+        var dumpKey = false;
+        IReadOnlyDictionary<string, List<string>>? memoryKeys = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -19,12 +21,13 @@ internal static class AnalyzeCommand
                 case "--decrypted-dir": decryptedDir = args[++i]; break;
                 case "--key": key = args[++i]; break;
                 case "--force": force = true; break;
+                case "--dump-key": dumpKey = true; break;
             }
         }
 
         if (dataDir is null || !Directory.Exists(dataDir))
         {
-            ProbeLog.Error("usage: analyze --data-dir <nt_data> [--db-dir <nt_db> | --decrypted-dir <dir>] [--workspace <dir>] [--key <key>] [--force]");
+            ProbeLog.Error("usage: analyze --data-dir <nt_data> [--db-dir <nt_db> | --decrypted-dir <dir>] [--workspace <dir>] [--key <key>] [--dump-key] [--force]");
             return 1;
         }
 
@@ -48,7 +51,36 @@ internal static class AnalyzeCommand
                 ProbeLog.Error("需要 --db-dir（QQ nt_db 目录）或 --decrypted-dir（已有明文库）");
                 return 1;
             }
-            key ??= Shared.ReadSecret("Enter account database key (input hidden): ");
+            if (key is null && dumpKey && Directory.Exists(dbDir))
+            {
+                ProbeLog.Info("从 QQ 进程内存只读扫描 keyspec（一次扫描覆盖所有库）…");
+                var specs = KeyDumper.DumpAllKeyspecs(new Progress<string>(m => ProbeLog.Info(m)),
+                    out var procs, out var bytes);
+                ProbeLog.Info($"扫描完成: {procs} 进程 / {bytes / 1048576.0:F0} MB，" +
+                              $"{specs.Sum(kv => kv.Value.Count)} 个 keyspec / {specs.Count} 个 salt");
+                memoryKeys = specs;
+
+                // The "account key" = a key validated against the first encrypted DB.
+                foreach (var name in DecryptService.AccountDbs)
+                {
+                    var candidate = Path.Combine(dbDir, name);
+                    if (!File.Exists(candidate) || DecryptService.IsPlainSqlite(candidate)) continue;
+                    var winner = ValidateKeyFor(candidate, specs);
+                    if (winner is not null)
+                    {
+                        key = winner;
+                        ProbeLog.Info($"已验证 {name} 的 key（仅保存在本次进程内存中）。");
+                        break;
+                    }
+                }
+                if (key is null)
+                {
+                    ProbeLog.Error("没有任何 keyspec 能解密账号库（QQ 需已登录目标账号）。");
+                    return 2;
+                }
+            }
+
+            key ??= Shared.ReadSecret("Enter account database key (input hidden, or Ctrl+C to abort; use --dump-key to fetch from QQ memory): ");
             if (string.IsNullOrWhiteSpace(key))
             {
                 ProbeLog.Error("未提供 key；账号库无法解密。");
@@ -59,7 +91,7 @@ internal static class AnalyzeCommand
             var missing = DecryptService.AccountDbs.Except(targets).ToList();
             foreach (var m in missing) ProbeLog.Warn($"缺少 {m}（跳过）");
 
-            var outcomes = DecryptService.DecryptAll(workspace, dbDir, key, targets, force, progress);
+            var outcomes = DecryptService.DecryptAll(workspace, dbDir, key, targets, force, progress, memoryKeys);
             foreach (var o in outcomes)
             {
                 if (o.Error is not null) ProbeLog.Warn($"{o.Source}: {o.Error}");
@@ -85,6 +117,31 @@ internal static class AnalyzeCommand
         ProbeLog.Info($"会话: {ChatCount(workspace):N0}（成功提取群名 {summary.Chats}）");
         foreach (var note in summary.Notes) ProbeLog.Unconfirmed(note);
         return 0;
+    }
+
+    /// <summary>Validates keyspec candidates against a real database (page 1 only).</summary>
+    private static string? ValidateKeyFor(string encryptedDb, IReadOnlyDictionary<string, List<string>> specs)
+    {
+        var salt = KeyDumper.ReadSalt(encryptedDb);
+        if (!specs.TryGetValue(Convert.ToHexString(salt), out var keys)) return null;
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "NTQlean", "keycheck-" + DateTime.Now.Ticks);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var cfg = new SqlCipherConfig { PageSize = 4096, KdfIterations = 4000, KdfUseSha512 = true, Hmac = HmacAlgorithm.HmacSha1 };
+            foreach (var key in keys)
+            {
+                if (SqlCipherDecryptor.DecryptCopy(encryptedDb, Path.Combine(tempDir, "probe.plain.db"),
+                        key, cfg, maxPages: 1).Success)
+                    return key;
+            }
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, recursive: true); } catch { }
+        }
+        return null;
     }
 
     private static long ChatCount(Workspace workspace)

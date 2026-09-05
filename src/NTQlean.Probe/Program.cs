@@ -16,6 +16,7 @@ return args[0] switch
     "test-media" => TestMediaCommand.Run(args.Skip(1).ToArray()),
     "analyze" => AnalyzeCommand.Run(args.Skip(1).ToArray()),
     "select" => SelectCommand.Run(args.Skip(1).ToArray()),
+    "get-key" => GetKeyCommand.Run(args.Skip(1).ToArray()),
     "help" or "--help" or "-h" => PrintUsage(),
     _ => Unknown(args[0]),
 };

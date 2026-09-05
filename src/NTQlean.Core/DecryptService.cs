@@ -44,6 +44,8 @@ public static class DecryptService
     /// Decrypts (or reuses existing) plain copies for the requested databases.
     /// Re-decrypts when forceRebuild is set. Falls back to an existing plain copy
     /// when the QQ original is locked (QQ running).
+    /// memoryKeys: optional salt→keys map from a QQ process memory scan — used
+    /// when a database carries its own key rather than the shared account key.
     /// </summary>
     public static List<DecryptOutcome> DecryptAll(
         Workspace workspace,
@@ -51,7 +53,8 @@ public static class DecryptService
         string accountKey,
         IEnumerable<string> dbNames,
         bool forceRebuild = false,
-        IProgress<string>? progress = null)
+        IProgress<string>? progress = null,
+        IReadOnlyDictionary<string, List<string>>? memoryKeys = null)
     {
         var outcomes = new List<DecryptOutcome>();
         foreach (var name in dbNames)
@@ -79,7 +82,7 @@ public static class DecryptService
                 continue;
             }
 
-            var result = DecryptOne(source, target, accountKey);
+            var result = DecryptOne(source, target, accountKey, memoryKeys);
             if (result.Success)
             {
                 outcomes.Add(new DecryptOutcome
@@ -109,7 +112,9 @@ public static class DecryptService
         return outcomes;
     }
 
-    private static SqlCipherDecryptResult DecryptOne(string source, string target, string accountKey)
+    private static SqlCipherDecryptResult DecryptOne(
+        string source, string target, string accountKey,
+        IReadOnlyDictionary<string, List<string>>? memoryKeys)
     {
         // snapshot into a temp dir inside the workspace, decrypt, then keep the plain file.
         var tempDir = Path.Combine(Path.GetDirectoryName(target)!, ".tmp-" + Guid.NewGuid().ToString("N")[..8]);
@@ -119,9 +124,26 @@ public static class DecryptService
             var snap = NtqqSnapshot.CopyDatabase(source, tempDir);
 
             var header = DbHeaderInspector.Inspect(snap.CopiedPath, readSalt: false);
-            foreach (var config in ConfigCandidates(header))
+            var configs = ConfigCandidates(header).ToList();
+
+            // Candidate keys: shared account key first, then keys whose in-memory
+            // keyspec salt matches THIS database's own salt (per-DB keys).
+            var keys = new List<string>();
+            if (!string.IsNullOrEmpty(accountKey)) keys.Add(accountKey);
+            var salt = new byte[16];
+            using (var fs = new FileStream(snap.CopiedPath, FileMode.Open, FileAccess.Read, ReadOnlyFile.PermissiveShare))
             {
-                var result = SqlCipherDecryptor.DecryptCopy(snap.CopiedPath, target, accountKey, config, null);
+                fs.Seek(DbHeaderInspector.NtqqHeaderSize, SeekOrigin.Begin);
+                if (fs.Read(salt) == 16 &&
+                    memoryKeys is not null &&
+                    memoryKeys.TryGetValue(Convert.ToHexString(salt), out var perDb))
+                    keys.AddRange(perDb);
+            }
+
+            foreach (var key in keys.Distinct())
+            foreach (var config in configs)
+            {
+                var result = SqlCipherDecryptor.DecryptCopy(snap.CopiedPath, target, key, config, null);
                 if (result.Success) return result;
             }
             return new SqlCipherDecryptResult { Success = false, Error = "decryption failed with all known parameter sets" };

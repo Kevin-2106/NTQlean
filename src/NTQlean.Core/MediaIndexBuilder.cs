@@ -285,8 +285,24 @@ public static partial class MediaIndexBuilder
         using var reader = select.ExecuteReader();
 
         long count = 0;
+        long bad = 0;
         while (reader.Read())
         {
+            long rowid = 0;
+            try
+            {
+                ProcessRow();
+            }
+            catch (Exception ex)
+            {
+                bad++;
+                if (summary.Notes.Count < 10)
+                    summary.Notes.Add($"{table}: rowid {rowid} 解析失败（已跳过）: {ex.Message}");
+            }
+
+            void ProcessRow()
+            {
+                rowid = reader.GetInt64(0);
             var i = 1;
             string name = reader.IsDBNull(i) ? "" : reader.GetValue(i)?.ToString() ?? ""; i++;
             string relPathInDb = reader.IsDBNull(i) ? "" : reader.GetValue(i)?.ToString() ?? ""; i++;
@@ -298,7 +314,7 @@ public static partial class MediaIndexBuilder
             string? thumb = hasThumb ? (reader.IsDBNull(i) ? null : reader.GetValue(i)?.ToString()) : null; if (hasThumb) i++;
             long? msgId = hasMsgId ? (reader.IsDBNull(i) ? null : Convert.ToInt64(reader.GetValue(i))) : null; if (hasMsgId) i++;
 
-            if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(relPathInDb)) continue;
+            if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(relPathInDb)) return;
 
             // Resolve against nt_data.
             var resolvedRel = "";
@@ -393,7 +409,10 @@ public static partial class MediaIndexBuilder
             insert.ExecuteNonQuery();
             count++;
             if (confidence != "missing") summary.Resolved++; else summary.Missing++;
+            }
         }
+        if (bad > 0)
+            summary.Notes.Add($"{table}: 共 {bad} 行解析失败被跳过");
         return count;
     }
 
