@@ -41,6 +41,8 @@
                                    Content="构建索引（解密副本 → 统一索引）" Click="OnBuildIndexClick"/>
                         <ui:Button Content="强制重建" Margin="8,0,0,0" Tag="force" Click="OnBuildIndexClick"/>
                     </StackPanel>
+                    <CheckBox x:Name="IncludeNtMsgBox" Content="包含 nt_msg 大库（约 13 GB，解密数分钟，用于孤儿引用确认）"
+                              Margin="0,8,0,0"/>
                     <TextBlock Foreground="#8A8A93" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"
                                Text="索引覆盖 files_in_chat / rich_media / file_assistant / group_info（不含 nt_msg 大库）。完成后在「选择与预览」中筛选。"/>
                 </StackPanel>

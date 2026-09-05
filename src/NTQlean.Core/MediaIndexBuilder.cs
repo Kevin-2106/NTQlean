@@ -61,7 +61,7 @@ public static partial class MediaIndexBuilder
     public static string KindOfExtension(string ext) =>
         ExtKind.TryGetValue(ext.TrimStart('.'), out var k) ? k : "other";
 
-    public static IndexBuildSummary Build(Workspace workspace, string ntDataDir, IProgress<string>? progress = null)
+    public static IndexBuildSummary Build(Workspace workspace, string ntDataDir, IProgress<string>? progress = null, string? ntMsgPlainPath = null)
     {
         var summary = new IndexBuildSummary();
 
@@ -133,13 +133,55 @@ public static partial class MediaIndexBuilder
             }
         }
 
+        // 2b. emoji favorites (absolute-path references into nt_data\Emoji).
+        progress?.Report("索引 emoji.db …");
+        try
+        {
+            IndexEmoji(workspace, index, ntDataDir, summary);
+        }
+        catch (Exception ex)
+        {
+            summary.Notes.Add($"emoji.db 索引失败: {ex.Message}");
+        }
+
         // 3. chat display names, best effort from group_info.db.
         progress?.Report("提取群聊名称（尽力而为）…");
         summary.Chats = BuildChatNames(workspace, index);
 
         // 4. orphan analysis: nt_data files not referenced by any media row.
         progress?.Report("未引用文件（孤儿）分析 …");
-        Exec(index, "CREATE TABLE orphan_nt_files(rel_path TEXT PRIMARY KEY, name TEXT, size INTEGER, mtime INTEGER, domain TEXT)");
+        Exec(index, "CREATE TABLE nt_refs(md5 TEXT PRIMARY KEY, hits INTEGER, sample_table TEXT, " +
+                    "sample_rowid INTEGER, sample_time INTEGER, sample_peer TEXT)");
+
+        // Optional: cross-reference orphan md5s against decrypted nt_msg bodies.
+        var refCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrEmpty(ntMsgPlainPath) && File.Exists(ntMsgPlainPath))
+        {
+            var md5Set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var name in ntIndex.Keys)
+            {
+                var stem = Path.GetFileNameWithoutExtension(name);
+                if (stem.Length == 32 && stem.All(Uri.IsHexDigit)) md5Set.Add(stem.ToUpperInvariant());
+            }
+            progress?.Report($"nt_msg 引用扫描：候选 md5 {md5Set.Count:N0} 个（大库，需数分钟）…");
+            try
+            {
+                var stats = NtMsgRefScanner.Scan(ntMsgPlainPath, index, md5Set, progress);
+                progress?.Report($"nt_msg 扫描完成: {stats.RowsScanned:N0} 行 / {stats.BytesScanned / 1048576.0:F0} MB，" +
+                                 $"命中 {stats.DistinctHits:N0} 个文件，跳过坏行 {stats.RowsSkipped:N0}");
+                using var cmd = index.CreateCommand();
+                cmd.CommandText = "SELECT md5, hits FROM nt_refs";
+                using var r = cmd.ExecuteReader();
+                while (r.Read()) refCounts[r.GetString(0)] = (int)r.GetInt64(1);
+            }
+            catch (Exception ex)
+            {
+                summary.Notes.Add($"nt_msg 引用扫描失败（索引继续，孤儿无引用确认不可用）: {ex.Message}");
+            }
+        }
+
+        Exec(index, "CREATE TABLE orphan_nt_files(rel_path TEXT PRIMARY KEY, name TEXT, size INTEGER, " +
+                    "mtime INTEGER, domain TEXT, ref_count INTEGER)");
         var referenced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         using (var cmd = index.CreateCommand())
         {
@@ -155,12 +197,13 @@ public static partial class MediaIndexBuilder
         }
         long orphanBytes = 0;
         var ins = index.CreateCommand();
-        ins.CommandText = "INSERT INTO orphan_nt_files(rel_path,name,size,mtime,domain) VALUES ($p,$n,$s,$m,$d)";
+        ins.CommandText = "INSERT INTO orphan_nt_files(rel_path,name,size,mtime,domain,ref_count) VALUES ($p,$n,$s,$m,$d,$rc)";
         var p2 = ins.Parameters.Add("$p", SqliteType.Text);
         var n2 = ins.Parameters.Add("$n", SqliteType.Text);
         var s2 = ins.Parameters.Add("$s", SqliteType.Integer);
         var m2 = ins.Parameters.Add("$m", SqliteType.Integer);
         var d2 = ins.Parameters.Add("$d", SqliteType.Text);
+        var rc2 = ins.Parameters.Add("$rc", SqliteType.Integer);
         using (var cmd = index.CreateCommand())
         {
             cmd.CommandText = "SELECT rel_path, name, size, mtime, domain FROM nt_files ORDER BY rel_path";
@@ -174,7 +217,11 @@ public static partial class MediaIndexBuilder
                 if (referenced.Contains(rel) || referenced.Contains(name)) continue;
                 var sz = r.GetInt64(2);
                 orphanBytes += sz;
+                var stem = Path.GetFileNameWithoutExtension(name);
                 p2.Value = rel; n2.Value = name; s2.Value = sz; m2.Value = mtime; d2.Value = domain;
+                rc2.Value = stem.Length == 32 && stem.All(Uri.IsHexDigit)
+                    ? refCounts.GetValueOrDefault(stem.ToUpperInvariant())
+                    : 0;
                 ins.ExecuteNonQuery();
             }
         }
@@ -198,6 +245,73 @@ public static partial class MediaIndexBuilder
         }
         tx.Commit();
         return summary;
+    }
+
+    /// <summary>
+    /// Indexes emoji favorites: fav_emoji_info_storage_table carries absolute
+    /// local paths (80012 = file, 80014 = thumb) plus md5 (80011).
+    /// </summary>
+    private static void IndexEmoji(Workspace workspace, SqliteConnection index, string ntDataDir, IndexBuildSummary summary)
+    {
+        var plain = workspace.PlainDbPath("emoji.db");
+        if (!File.Exists(plain)) { summary.Notes.Add("emoji.db: 未提供（跳过）"); return; }
+
+        using var src = NtqSqlite.OpenReadOnly(plain);
+        if (!TableExists(src, "fav_emoji_info_storage_table"))
+        {
+            summary.Notes.Add("emoji.db: 没有 fav_emoji_info_storage_table（跳过）");
+            return;
+        }
+
+        var insert = index.CreateCommand();
+        insert.CommandText = """
+            INSERT INTO media(source, source_table, msg_id, chat_id, chat_type, kind, file_name, rel_path,
+                              abs_path, thumb_rel, size_db, size_bytes, actual_size, msg_time, time_source,
+                              md5, uuid, confidence)
+            VALUES ('emoji','fav_emoji_info_storage_table',NULL,NULL,NULL,'emoji',$fname,$rpath,
+                    $apath,$trel,NULL,$sbytes,$actual,$mtime,'file',$md5,NULL,$conf)
+            """;
+        var pFname = insert.Parameters.Add("$fname", SqliteType.Text);
+        var pRpath = insert.Parameters.Add("$rpath", SqliteType.Text);
+        var pApath = insert.Parameters.Add("$apath", SqliteType.Text);
+        var pTrel = insert.Parameters.Add("$trel", SqliteType.Text);
+        var pSbytes = insert.Parameters.Add("$sbytes", SqliteType.Integer);
+        var pActual = insert.Parameters.Add("$actual", SqliteType.Integer);
+        var pMtime = insert.Parameters.Add("$mtime", SqliteType.Integer);
+        var pMd5 = insert.Parameters.Add("$md5", SqliteType.Text);
+        var pConf = insert.Parameters.Add("$conf", SqliteType.Text);
+
+        using var cmd = src.CreateCommand();
+        cmd.CommandText = "SELECT \"80011\", \"80012\", \"80014\" FROM \"fav_emoji_info_storage_table\" " +
+                          "WHERE \"80012\" IS NOT NULL AND \"80012\" <> ''";
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+        {
+            var md5 = r.IsDBNull(0) ? "" : r.GetString(0);
+            var abs = r.GetString(1);
+            var thumbAbs = r.IsDBNull(2) ? "" : r.GetString(2);
+
+            if (!File.Exists(abs)) continue; // favorite recorded but never downloaded
+            var fi = new FileInfo(abs);
+            var rel = "";
+            var full = Path.GetFullPath(abs);
+            var rootFull = Path.GetFullPath(ntDataDir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (full.StartsWith(rootFull, StringComparison.OrdinalIgnoreCase))
+                rel = full[rootFull.Length..].Replace('\\', '/');
+
+            pFname.Value = Path.GetFileName(abs);
+            pRpath.Value = rel;
+            pApath.Value = full;
+            pTrel.Value = string.IsNullOrEmpty(thumbAbs) ? "" : thumbAbs;
+            pSbytes.Value = fi.Length;
+            pActual.Value = fi.Length;
+            pMtime.Value = ((DateTimeOffset)fi.LastWriteTimeUtc).ToUnixTimeSeconds();
+            pMd5.Value = string.IsNullOrEmpty(md5) ? DBNull.Value : md5;
+            pConf.Value = "exact";
+            insert.ExecuteNonQuery();
+            summary.MediaRows++;
+            summary.Resolved++;
+        }
     }
 
     /// <summary>Tables that look like media metadata (have the 45402/45403/45405 signature).</summary>
@@ -545,6 +659,14 @@ public static partial class MediaIndexBuilder
         using var cmd = c.CreateCommand();
         cmd.CommandText = sql;
         cmd.ExecuteNonQuery();
+    }
+
+    private static bool TableExists(SqliteConnection c, string t)
+    {
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name=$n";
+        cmd.Parameters.AddWithValue("$n", t);
+        return Convert.ToInt64(cmd.ExecuteScalar()) > 0;
     }
 
     private static SqliteConnection CreateIndex(string path)

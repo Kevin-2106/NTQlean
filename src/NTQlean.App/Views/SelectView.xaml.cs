@@ -65,6 +65,7 @@ public partial class SelectView : UserControl
             SizeMax = sizeMax,
             Expression = string.IsNullOrWhiteSpace(ExprBox.Text) ? null : ExprBox.Text,
             IncludeOrphans = COrphan.IsChecked == true,
+            IncludeReferencedOrphans = CNoRefOrphan.IsChecked != true,
         };
     }
 
@@ -296,4 +297,7 @@ public sealed class ResultRow
         ? DateTimeOffset.FromUnixTimeSeconds(t).LocalDateTime.ToString("yyyy-MM-dd HH:mm")
         : "—";
     public string Confidence => Row.Confidence;
+    public string MsgRefsText => Row.Confidence == "orphan"
+        ? (Row.MsgRefs > 0 ? $"{Row.MsgRefs} 条" : "0")
+        : "—";
 }

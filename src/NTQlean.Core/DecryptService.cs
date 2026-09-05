@@ -24,8 +24,11 @@ public static class DecryptService
     /// <summary>Databases required for the media/storage index.</summary>
     public static readonly string[] AccountDbs =
     {
-        "files_in_chat.db", "rich_media.db", "file_assistant.db", "group_info.db",
+        "files_in_chat.db", "rich_media.db", "file_assistant.db", "group_info.db", "emoji.db",
     };
+
+    /// <summary>Optional heavy message database (indexed only on request).</summary>
+    public const string NtMsgDb = "nt_msg.db";
 
     public static bool IsPlainSqlite(string path)
     {

@@ -225,7 +225,27 @@ public partial class KeysView : UserControl
                 }
             }
 
-            var summary = await Task.Run(() => MediaIndexBuilder.Build(workspace, dataDir, progress));
+            var summary = await Task.Run(() =>
+            {
+                // Optional heavy nt_msg index (per-DB key, D: target for the 13 GB copy).
+                string? ntMsgPlain = null;
+                if (IncludeNtMsgBox.IsChecked == true &&
+                    !string.IsNullOrEmpty(dbDir) && File.Exists(Path.Combine(dbDir, DecryptService.NtMsgDb)))
+                {
+                    var ntMsgWorkspace = new Workspace("D:\\NTQlean\\nt-msg");
+                    AppendLog("解密 nt_msg.db（大库，数分钟）…");
+                    var outcomes = DecryptService.DecryptAll(ntMsgWorkspace, dbDir,
+                        string.Empty, new[] { DecryptService.NtMsgDb }, force, progress, AppState.MemoryKeys);
+                    foreach (var o in outcomes)
+                    {
+                        if (o.Error is not null) AppendLog($"[警告] nt_msg.db: {o.Error}");
+                        else if (o.Decrypted) AppendLog($"nt_msg.db: 解密完成（HMAC {o.HmacOk}）");
+                    }
+                    var p = ntMsgWorkspace.PlainDbPath(DecryptService.NtMsgDb);
+                    if (File.Exists(p)) ntMsgPlain = p;
+                }
+                return MediaIndexBuilder.Build(workspace, dataDir, progress, ntMsgPlain);
+            });
             AppendLog($"索引完成: 媒体 {summary.MediaRows:N0}（已解析 {summary.Resolved:N0} / 未解析 {summary.Missing:N0}），" +
                       $"nt_data 文件 {summary.NtFiles:N0}，孤儿 {summary.OrphanFiles:N0} 个 / {summary.OrphanBytes / 1048576.0:F0} MB");
             foreach (var note in summary.Notes) AppendLog($"[提示] {note}");

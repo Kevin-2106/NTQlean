@@ -48,6 +48,7 @@
                     <CheckBox x:Name="CStrong" Content="strong（路径匹配，大小不符）" IsChecked="True" Margin="2,3"/>
                     <CheckBox x:Name="CHeuristic" Content="heuristic（仅名称相似）" Margin="2,3"/>
                     <CheckBox x:Name="COrphan" Content="orphan（无数据库引用）" Margin="2,3"/>
+                    <CheckBox x:Name="CNoRefOrphan" Content="孤儿中排除已被聊天记录引用（推荐）" IsChecked="True" Margin="2,3"/>
 
                     <TextBlock Text="时间范围" Style="{StaticResource FilterLabel}"/>
                     <StackPanel Orientation="Horizontal">
@@ -139,6 +140,7 @@
                         <DataGridTextColumn Header="大小" Binding="{Binding SizeText}" Width="100"/>
                         <DataGridTextColumn Header="时间" Binding="{Binding TimeText}" Width="140"/>
                         <DataGridTextColumn Header="置信度" Binding="{Binding Confidence}" Width="85"/>
+                        <DataGridTextColumn Header="消息引用" Binding="{Binding MsgRefsText}" Width="85"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </ui:Card>

@@ -39,6 +39,13 @@ public sealed record SelectionOptions
     /// </summary>
     public bool IncludeOrphans { get; init; }
 
+    /// <summary>
+    /// When including orphans, keep also those referenced by chat messages in
+    /// the decrypted nt_msg.db (ref_count > 0). Default false — such files may
+    /// still be displayed by retained chat history.
+    /// </summary>
+    public bool IncludeReferencedOrphans { get; init; }
+
     public bool IsValidForDeletion => Confidences.All(c =>
         c.Equals("exact", StringComparison.OrdinalIgnoreCase) ||
         c.Equals("strong", StringComparison.OrdinalIgnoreCase));
@@ -49,7 +56,8 @@ public sealed record SelectionRow(
     string FileName, string RelPath, string AbsPath, string ThumbRel,
     long? SizeDb, long? SizeBytes, long? ActualSize,
     long? MsgTime, string TimeSource, string? Md5, string? Uuid,
-    string Confidence, string Source, string SourceTable, long? MsgId);
+    string Confidence, string Source, string SourceTable, long? MsgId,
+    long MsgRefs = 0);
 
 public sealed class SelectionResult
 {
@@ -136,11 +144,12 @@ public static class SelectionEngine
             if (options.TimeTo is { } ot) orphanWhere.Add($"mtime <= {ot}");
             if (options.SizeMin is { } omin) orphanWhere.Add($"size >= {omin}");
             if (options.SizeMax is { } omax) orphanWhere.Add($"size <= {omax}");
+            if (!options.IncludeReferencedOrphans) orphanWhere.Add("ref_count = 0");
 
             var ntRoot = GetMeta(conn, "nt_data_root") ?? "";
             using var cmd = conn.CreateCommand();
             cmd.CommandText =
-                "SELECT rel_path, name, size, mtime, domain FROM orphan_nt_files " +
+                "SELECT rel_path, name, size, mtime, domain, ref_count FROM orphan_nt_files " +
                 (orphanWhere.Count > 0 ? "WHERE " + string.Join(" AND ", orphanWhere) : "") +
                 " ORDER BY size DESC";
             using var r = cmd.ExecuteReader();
@@ -151,6 +160,7 @@ public static class SelectionEngine
                 var size = r.GetInt64(2);
                 var mtime = r.GetInt64(3);
                 var domain = r.GetString(4);
+                var refs = r.GetInt64(5);
                 var kind = DomainToKind(domain);
                 var abs = string.IsNullOrEmpty(ntRoot) ? "" : Path.Combine(ntRoot, rel.Replace('/', Path.DirectorySeparatorChar));
                 var row = new SelectionRow(
@@ -158,7 +168,8 @@ public static class SelectionEngine
                     name, rel, File.Exists(abs) ? abs : "", "",
                     size, size, File.Exists(abs) ? size : null,
                     mtime, "file", null, null,
-                    "orphan", "orphan", "orphan_nt_files", null);
+                    "orphan", "orphan", "orphan_nt_files", null,
+                    refs);
                 Accumulate(row);
             }
         }

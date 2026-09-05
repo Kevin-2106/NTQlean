@@ -12,6 +12,7 @@ internal static class SelectCommand
         long? timeFrom = null, timeTo = null, sizeMin = null, sizeMax = null;
         var chatFilterActive = false;
         var includeOrphans = false;
+        var includeRefOrphans = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -28,6 +29,7 @@ internal static class SelectCommand
                 case "--size-min": sizeMin = ParseSize(args[++i]); break;
                 case "--size-max": sizeMax = ParseSize(args[++i]); break;
                 case "--include-orphans": includeOrphans = true; break;
+                case "--include-referenced-orphans": includeRefOrphans = true; break;
                 case "--json": jsonOut = args[++i]; break;
             }
         }
@@ -53,6 +55,7 @@ internal static class SelectCommand
             SizeMax = sizeMax,
             Expression = expr,
             IncludeOrphans = includeOrphans,
+            IncludeReferencedOrphans = includeRefOrphans,
         };
 
         var selection = SelectionEngine.Query(indexPath, options);

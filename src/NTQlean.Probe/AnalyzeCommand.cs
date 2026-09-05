@@ -3,12 +3,13 @@ using NTQlean.Core;
 
 internal static class AnalyzeCommand
 {
-    public static int Run(string[] args)
+    public static async Task<int> Run(string[] args)
     {
-        string? dbDir = null, dataDir = null, workspaceDir = null, decryptedDir = null;
+        string? dbDir = null, dataDir = null, workspaceDir = null, decryptedDir = null, ntMsgDir = null;
         string? key = null;
         var force = false;
         var dumpKey = false;
+        var includeNtMsg = false;
         IReadOnlyDictionary<string, List<string>>? memoryKeys = null;
 
         for (var i = 0; i < args.Length; i++)
@@ -22,6 +23,8 @@ internal static class AnalyzeCommand
                 case "--key": key = args[++i]; break;
                 case "--force": force = true; break;
                 case "--dump-key": dumpKey = true; break;
+                case "--include-nt-msg": includeNtMsg = true; break;
+                case "--nt-msg-dir": ntMsgDir = args[++i]; break;
             }
         }
 
@@ -107,9 +110,28 @@ internal static class AnalyzeCommand
             }
         }
 
+        // Stage 2b: optional nt_msg decryption (13 GB class) into its own directory.
+        string? ntMsgPlain = null;
+        if (includeNtMsg && dbDir is not null && File.Exists(Path.Combine(dbDir, DecryptService.NtMsgDb)))
+        {
+            ntMsgDir ??= Path.Combine("D:\\", "NTQlean", "nt-msg");
+            var ntMsgWorkspace = new Workspace(ntMsgDir);
+            ProbeLog.Info($"解密 nt_msg.db（大库，数分钟）→ {ntMsgWorkspace.Root} …");
+            var ntMsgOutcomes = await Task.Run(() => DecryptService.DecryptAll(
+                ntMsgWorkspace, dbDir, key ?? "", new[] { DecryptService.NtMsgDb },
+                force, progress, memoryKeys));
+            foreach (var o in ntMsgOutcomes)
+            {
+                if (o.Error is not null) ProbeLog.Warn($"nt_msg.db: {o.Error}");
+                else if (o.Decrypted) ProbeLog.Info($"nt_msg.db: 解密完成（HMAC {o.HmacOk}）");
+            }
+            ntMsgPlain = ntMsgWorkspace.PlainDbPath(DecryptService.NtMsgDb);
+            if (!File.Exists(ntMsgPlain)) ntMsgPlain = null;
+        }
+
         // Stage 2: build the index.
         ProbeLog.Info("构建索引 …");
-        var summary = MediaIndexBuilder.Build(workspace, dataDir, progress);
+        var summary = await Task.Run(() => MediaIndexBuilder.Build(workspace, dataDir, progress, ntMsgPlain));
         ProbeLog.Info($"索引完成: 媒体引用 {summary.MediaRows:N0} 条 " +
                       $"(已解析 {summary.Resolved:N0} / 未解析 {summary.Missing:N0})");
         ProbeLog.Info($"nt_data 文件: {summary.NtFiles:N0}（其中无数据库引用 {summary.OrphanFiles:N0} 个 / " +

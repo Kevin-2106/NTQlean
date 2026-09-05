@@ -70,6 +70,22 @@ internal static class OpenDbCommand
             attempts.Add((KnownLoginDbKey, "public hardcoded login.db key"));
         if (key is not null)
             attempts.Add((key, "user-supplied key"));
+
+        // Memory-extracted keys: validate candidates for THIS db's salt first.
+        if (attempts.Count == 0)
+        {
+            try
+            {
+                var saltHex = Convert.ToHexString(KeyDumper.ReadSalt(path));
+                var dumped = KeyDumper.DumpAllKeyspecs(null, out _, out _);
+                if (dumped.TryGetValue(saltHex, out var keys))
+                    foreach (var k in keys) attempts.Add((k, "QQ process memory (read-only scan)"));
+            }
+            catch
+            {
+                // fall through to interactive prompt
+            }
+        }
         if (key is null)
         {
             var entered = Shared.ReadSecret("Enter database key (input hidden): ");
