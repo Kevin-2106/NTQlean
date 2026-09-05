@@ -15,6 +15,7 @@ public partial class MainWindow : Window
     private CleanupPlan? _plan;
     private readonly HashSet<string> _excludedChats = new(StringComparer.OrdinalIgnoreCase);
     private readonly ThumbService _thumbs = new(256);
+    private IReadOnlyDictionary<string, List<string>>? _memoryKeys; // salt -> keys, from QQ memory
 
     public MainWindow()
     {
@@ -132,6 +133,7 @@ public partial class MainWindow : Window
                 SetStatus("未找到 key");
                 return;
             }
+            _memoryKeys = specs;      // every DB's own key, matched later by salt
             KeyBox.Password = key; // stays in memory only
             SetStatus("key 已提取（仅内存）");
         }
@@ -223,10 +225,27 @@ public partial class MainWindow : Window
             }
             else
             {
+                // Each account DB carries its own key: make sure we have the full
+                // salt->keys map from QQ memory (scan once, quietly, if not done yet).
+                if (_memoryKeys is null)
+                {
+                    Log("从运行中的 QQ 扫描各库 keyspec（每个库 key 独立）…");
+                    var specs = await Task.Run(() => KeyDumper.DumpAllKeyspecs(null, out _, out _));
+                    if (specs.Count > 0)
+                    {
+                        _memoryKeys = specs;
+                        Log($"获得 {specs.Values.Sum(v => v.Count)} 个 keyspec / {specs.Count} 个 salt。");
+                    }
+                    else
+                    {
+                        Log("未扫到 keyspec（QQ 未运行？）。只有与所填 key 匹配的库能解密。");
+                    }
+                }
+
                 var targets = DecryptService.AccountDbs
                     .Where(n => File.Exists(Path.Combine(dbDir, n))).ToList();
                 var outcomes = await Task.Run(() =>
-                    DecryptService.DecryptAll(_workspace, dbDir, key, targets, force, progress));
+                    DecryptService.DecryptAll(_workspace, dbDir, key, targets, force, progress, _memoryKeys));
                 foreach (var o in outcomes)
                 {
                     if (o.Error is not null) Log($"[警告] {o.Source}: {o.Error}");
