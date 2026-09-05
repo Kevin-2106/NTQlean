@@ -55,6 +55,7 @@ public static class NtMsgRefScanner
 
         var grand = new Dictionary<string, HitInfo>(StringComparer.OrdinalIgnoreCase);
         var grandLock = new object();
+        var workerErrors = new List<string>();
         long rowsTotal = 0, blobsTotal = 0, bytesTotal = 0, skippedTotal = 0;
         var workers = Math.Clamp(Environment.ProcessorCount - 2, 1, 12);
 
@@ -80,12 +81,13 @@ public static class NtMsgRefScanner
                     try
                     {
                         ScanRange(plainNtMsgPath, table, timeCol, peerCol, peerExists,
-                            range.lo, range.hi, bin, ascii, hits,
+                            range.lo, range.hi, bin, ascii, hits, progress,
                             ref rows, ref blobs, ref bytes, ref skipped);
                     }
-                    catch
+                    catch (Exception wex)
                     {
-                        // worker-level failure: keep whatever other workers found
+                        lock (grandLock)
+                            workerErrors.Add($"range {range.lo:N0}-{range.hi:N0}: {wex.Message}");
                     }
                     Interlocked.Add(ref rowsTotal, rows);
                     Interlocked.Add(ref blobsTotal, blobs);
@@ -107,9 +109,9 @@ public static class NtMsgRefScanner
         }
 
         // ── write nt_refs ──
+        // writes join the caller's active transaction (no nested BeginTransaction)
         Exec(index, "CREATE TABLE IF NOT EXISTS nt_refs(md5 TEXT PRIMARY KEY, hits INTEGER, " +
                     "sample_table TEXT, sample_rowid INTEGER, sample_time INTEGER, sample_peer TEXT)");
-        using var tx = index.BeginTransaction();
         var ins = index.CreateCommand();
         ins.CommandText = "INSERT OR REPLACE INTO nt_refs(md5,hits,sample_table,sample_rowid,sample_time,sample_peer) " +
                           "VALUES ($m,$h,$t,$r,$ts,$p)";
@@ -129,7 +131,9 @@ public static class NtMsgRefScanner
             pp.Value = (object?)info.SamplePeer ?? DBNull.Value;
             ins.ExecuteNonQuery();
         }
-        tx.Commit();
+
+        foreach (var err in workerErrors)
+            progress?.Report($"[警告] nt_msg 扫描分片失败: {err}");
 
         return new NtMsgRefStats(rowsTotal, blobsTotal, bytesTotal, grand.Count, skippedTotal);
     }
@@ -138,7 +142,7 @@ public static class NtMsgRefScanner
         string plainNtMsgPath, string table, string timeCol, string peerCol, bool peerExists,
         long lo, long hi,
         Dictionary<ushort, List<byte[]>> bin, Dictionary<uint, List<byte[]>> ascii,
-        Dictionary<string, HitInfo> hits,
+        Dictionary<string, HitInfo> hits, IProgress<string>? progress,
         ref long rows, ref long blobs, ref long bytes, ref long skipped)
     {
         const int Batch = 4000;
@@ -147,6 +151,7 @@ public static class NtMsgRefScanner
         {
             var last = lo - 1;
             var batch = Batch;
+            var consecutiveFailures = 0;
             var select = peerExists
                 ? $"SELECT rowid, \"{timeCol}\", \"{peerCol}\", \"40800\" FROM \"{table}\" " +
                   "WHERE rowid > $last AND rowid <= $hi ORDER BY rowid LIMIT $n"
@@ -178,14 +183,26 @@ public static class NtMsgRefScanner
                 }
                 catch (SqliteException)
                 {
-                    // corrupt page: reconnect, shrink batch, skip the bad rowid at batch=1
+                    // corrupt page: reconnect, shrink batch, skip the bad rowid at batch=1;
+                    // if corruption keeps failing consecutively, jump the range forward
                     src.Dispose();
                     src = NtqSqlite.OpenReadOnly(plainNtMsgPath);
+                    consecutiveFailures++;
                     if (batch == 1)
                     {
                         last += 1;
                         skipped++;
                         batch = 200;
+                        if (consecutiveFailures >= 200)
+                        {
+                            // rowids are extremely sparse: a data page spans a huge
+                            // rowid span, so retrying nearby rowids hits the same
+                            // corrupt page forever. Jump geometrically instead.
+                            var jump = Math.Max(1_000_000, (hi - last) / 8);
+                            last += jump;
+                            batch = Batch;
+                            consecutiveFailures = 0;
+                        }
                     }
                     else
                     {
@@ -212,7 +229,11 @@ public static class NtMsgRefScanner
                     rows++;
                 }
 
+                if (rows % 200_000 < batchRows.Count)
+                    progress?.Report($"  [{table} {lo:N0}-{hi:N0}] 已扫 {rows:N0} 行，命中 {hits.Count:N0}，跳坏 {skipped:N0}");
+
                 if (batchRows.Count == 0) break; // range exhausted
+                consecutiveFailures = 0;
                 if (batch < Batch) batch = Math.Min(Batch, batch * 2);
             }
         }
