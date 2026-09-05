@@ -1,0 +1,56 @@
+<UserControl x:Class="NTQlean.App.Views.SourcesView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <Grid Margin="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <ui:Card Grid.Column="0" Margin="0,0,8,0" VerticalAlignment="Stretch">
+            <StackPanel>
+                <TextBlock Text="1. 发现 NTQQ 数据目录" FontSize="16" FontWeight="SemiBold"/>
+                <ui:Button Content="自动发现（标准位置，不全盘扫描）" Icon="{ui:SymbolIcon Search24}"
+                           Margin="0,10,0,0" Click="OnDiscoverClick"/>
+                <DataGrid x:Name="AccountGrid" Height="300" Margin="0,10,0,0"
+                          AutoGenerateColumns="False" IsReadOnly="True"
+                          SelectionMode="Single" HeadersVisibility="Column"
+                          SelectionChanged="OnAccountSelected">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="账号" Binding="{Binding MaskedUin}" Width="110"/>
+                        <DataGridTextColumn Header="库合计" Binding="{Binding DbSizeText}" Width="90"/>
+                        <DataGridTextColumn Header="数据根" Binding="{Binding Root}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <TextBlock Text="若 QQ 正在运行，索引构建仍可进行（共享读取），但完全退出 QQ 后的快照最可靠。"
+                           Foreground="#8A8A93" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
+            </StackPanel>
+        </ui:Card>
+
+        <ui:Card Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Stretch">
+            <StackPanel>
+                <TextBlock Text="2. 确认路径" FontSize="16" FontWeight="SemiBold"/>
+                <TextBlock Text="nt_db（数据库目录，只读）" Foreground="#BBBBBB" Margin="0,10,0,2"/>
+                <DockPanel>
+                    <ui:Button DockPanel.Dock="Right" Content="浏览…" Margin="6,0,0,0" Click="OnBrowseDbClick"/>
+                    <ui:TextBox x:Name="DbDirBox"/>
+                </DockPanel>
+                <TextBlock Text="nt_data（媒体目录，清理目标根）" Foreground="#BBBBBB" Margin="0,10,0,2"/>
+                <DockPanel>
+                    <ui:Button DockPanel.Dock="Right" Content="浏览…" Margin="6,0,0,0" Click="OnBrowseDataClick"/>
+                    <ui:TextBox x:Name="DataDirBox"/>
+                </DockPanel>
+                <TextBlock Text="工作区（解密副本与索引存放处）" Foreground="#BBBBBB" Margin="0,10,0,2"/>
+                <DockPanel>
+                    <ui:Button DockPanel.Dock="Right" Content="浏览…" Margin="6,0,0,0" Click="OnBrowseWorkspaceClick"/>
+                    <ui:TextBox x:Name="WorkspaceBox"/>
+                </DockPanel>
+                <ui:InfoBar x:Name="SafetyBar" Title="安全说明" Message="QQ 原文件只以只读方式打开；解密副本与索引仅写入工作区。"
+                         IsClosable="False" Severity="Informational" Margin="0,14,0,0"/>
+                <ui:Button Appearance="Primary" Content="下一步：密钥与索引 →" Icon="{ui:SymbolIcon ArrowRight24}"
+                           Margin="0,14,0,0" Click="OnGoIndexClick"/>
+            </StackPanel>
+        </ui:Card>
+    </Grid>
+</UserControl>

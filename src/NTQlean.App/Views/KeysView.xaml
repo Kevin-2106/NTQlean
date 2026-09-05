@@ -1,0 +1,64 @@
+<UserControl x:Class="NTQlean.App.Views.KeysView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <Grid Margin="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="400"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+            <ui:Card>
+                <StackPanel>
+                    <TextBlock Text="密钥（每个数据库独立）" FontSize="16" FontWeight="SemiBold"/>
+                    <ui:Button x:Name="DumpKeyButton" Appearance="Primary" Icon="{ui:SymbolIcon Key24}"
+                               Content="从运行中的 QQ 提取全部 key（只读内存扫描）"
+                               Margin="0,10,0,0" Click="OnDumpKeyClick"/>
+                    <TextBlock Foreground="#8A8A93" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"
+                               Text="外部只读扫描（ReadProcessMemory，不注入/不写入），需 QQ 已登录目标账号；仅限本机本人账号使用。key 只保存在内存中。"/>
+                    <TextBlock Text="手动粘贴 key（可选，用于当前选中的库）" Foreground="#BBBBBB" Margin="0,10,0,2"/>
+                    <DockPanel>
+                        <ui:Button DockPanel.Dock="Right" Content="应用" Margin="6,0,0,0" Click="OnApplyManualKeyClick"/>
+                        <ui:TextBox x:Name="ManualKeyBox"/>
+                    </DockPanel>
+                    <DataGrid x:Name="KeyGrid" Height="180" Margin="0,12,0,0"
+                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="数据库" Binding="{Binding DbName}" Width="150"/>
+                            <DataGridTextColumn Header="状态" Binding="{Binding State}" Width="110"/>
+                            <DataGridTextColumn Header="key（掩码）" Binding="{Binding KeyMask}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </ui:Card>
+
+            <ui:Card Margin="0,8,0,0">
+                <StackPanel>
+                    <TextBlock Text="构建索引" FontSize="16" FontWeight="SemiBold"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <ui:Button x:Name="BuildButton" Appearance="Primary" Icon="{ui:SymbolIcon Database24}"
+                                   Content="构建索引（解密副本 → 统一索引）" Click="OnBuildIndexClick"/>
+                        <ui:Button Content="强制重建" Margin="8,0,0,0" Tag="force" Click="OnBuildIndexClick"/>
+                    </StackPanel>
+                    <TextBlock Foreground="#8A8A93" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"
+                               Text="索引覆盖 files_in_chat / rich_media / file_assistant / group_info（不含 nt_msg 大库）。完成后在「选择与预览」中筛选。"/>
+                </StackPanel>
+            </ui:Card>
+        </StackPanel>
+
+        <ui:Card Grid.Column="1" Margin="8,0,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="进度日志" FontSize="16" FontWeight="SemiBold"/>
+                <TextBox Grid.Row="1" x:Name="LogBox" IsReadOnly="True" Margin="0,8,0,0"
+                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                         FontFamily="Consolas" FontSize="12"
+                         Background="#141417" Foreground="#D8D8D8" BorderBrush="#33333A"/>
+            </Grid>
+        </ui:Card>
+    </Grid>
+</UserControl>

@@ -1,0 +1,159 @@
+<UserControl x:Class="NTQlean.App.Views.SelectView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <UserControl.Resources>
+        <Style x:Key="FilterLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#DDDDDD"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,12,0,4"/>
+        </Style>
+        <Style x:Key="DarkGrid" TargetType="DataGrid">
+            <Setter Property="Background" Value="#202024"/>
+            <Setter Property="Foreground" Value="#DDDDDD"/>
+            <Setter Property="BorderBrush" Value="#3A3A42"/>
+            <Setter Property="RowBackground" Value="#26262C"/>
+            <Setter Property="AlternatingRowBackground" Value="#2B2B32"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#33333A"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="290"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="240"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- filters -->
+        <ui:Card Grid.Column="0" Margin="0,0,8,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="类型" Style="{StaticResource FilterLabel}" Margin="0,0,0,4"/>
+                    <WrapPanel>
+                        <CheckBox x:Name="KImage" Content="图片" IsChecked="True" Margin="2,3"/>
+                        <CheckBox x:Name="KVideo" Content="视频" IsChecked="True" Margin="2,3"/>
+                        <CheckBox x:Name="KFile" Content="文件" IsChecked="True" Margin="2,3"/>
+                        <CheckBox x:Name="KPtt" Content="语音" IsChecked="True" Margin="2,3"/>
+                        <CheckBox x:Name="KOther" Content="其他" IsChecked="True" Margin="2,3"/>
+                    </WrapPanel>
+
+                    <TextBlock Text="置信度" Style="{StaticResource FilterLabel}"/>
+                    <CheckBox x:Name="CExact" Content="exact（路径+大小完全匹配）" IsChecked="True" Margin="2,3"/>
+                    <CheckBox x:Name="CStrong" Content="strong（路径匹配，大小不符）" IsChecked="True" Margin="2,3"/>
+                    <CheckBox x:Name="CHeuristic" Content="heuristic（仅名称相似）" Margin="2,3"/>
+                    <CheckBox x:Name="COrphan" Content="orphan（无数据库引用）" Margin="2,3"/>
+
+                    <TextBlock Text="时间范围" Style="{StaticResource FilterLabel}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="从" VerticalAlignment="Center" Width="26"/>
+                        <DatePicker x:Name="DateFrom" Width="128"/>
+                        <TextBlock Text="至" VerticalAlignment="Center" Width="26" Margin="8,0,0,0"/>
+                        <DatePicker x:Name="DateTo" Width="128"/>
+                    </StackPanel>
+                    <WrapPanel Margin="0,6,0,0">
+                        <ui:Button Content="近30天" Click="OnPreset30d"/>
+                        <ui:Button Content="今年" Margin="6,0,0,0" Click="OnPresetYear"/>
+                        <ui:Button Content="去年" Margin="6,0,0,0" Click="OnPresetLastYear"/>
+                        <ui:Button Content="全部" Margin="6,0,0,0" Click="OnPresetAll"/>
+                    </WrapPanel>
+
+                    <TextBlock Text="大小范围（MB）" Style="{StaticResource FilterLabel}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="≥" VerticalAlignment="Center" Width="20"/>
+                        <ui:TextBox x:Name="SizeMin" Width="80"/>
+                        <TextBlock Text="≤" VerticalAlignment="Center" Width="20" Margin="10,0,0,0"/>
+                        <ui:TextBox x:Name="SizeMax" Width="80"/>
+                    </StackPanel>
+
+                    <TextBlock Text="高级表达式（覆盖时间/大小）" Style="{StaticResource FilterLabel}"/>
+                    <ui:TextBox x:Name="ExprBox" MinHeight="46" TextWrapping="Wrap" AcceptsReturn="True"/>
+                    <TextBlock Foreground="#8A8A93" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Text="例: size &gt;= 10MB AND time &lt; 2025-01-01 AND NOT chat == 123456&#x0a;支持 AND / OR / NOT 与括号；字段: time size chat kind conf name path"/>
+
+                    <ui:Button Appearance="Primary" Content="应用筛选（预演）" Icon="{ui:SymbolIcon Filter24}"
+                               Margin="0,14,0,0" Click="OnApplyFilterClick"/>
+                    <ui:Button Content="导出 CSV" Icon="{ui:SymbolIcon Save24}" Margin="0,8,0,0" Click="OnExportCsvClick"/>
+                </StackPanel>
+            </ScrollViewer>
+        </ui:Card>
+
+        <!-- chats + results -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="3*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="7*"/>
+            </Grid.RowDefinitions>
+
+            <ui:Card Grid.Row="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                        <TextBlock Text="会话（选中行后点右侧按钮 = 排除 / NOT）" FontWeight="SemiBold"/>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <ui:Button Content="排除选中" Click="OnExcludeChatClick"/>
+                            <ui:Button Content="清空排除" Margin="6,0,0,0" Click="OnUnexcludeChatClick"/>
+                        </StackPanel>
+                    </DockPanel>
+                    <DataGrid Grid.Row="1" x:Name="ChatGrid" Style="{StaticResource DarkGrid}"
+                              SelectionMode="Extended">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="会话 ID" Binding="{Binding ChatId}" Width="130"/>
+                            <DataGridTextColumn Header="名称" Binding="{Binding DisplayName}" Width="*"/>
+                            <DataGridTextColumn Header="媒体" Binding="{Binding ItemsText}" Width="90"/>
+                            <DataGridTextColumn Header="大小" Binding="{Binding SizeText}" Width="100"/>
+                            <DataGridTextColumn Header="状态" Binding="{Binding ExcludedText}" Width="80"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </ui:Card>
+
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8">
+                <TextBlock x:Name="ResultStats" VerticalAlignment="Center" Foreground="#7FBF7F"/>
+            </StackPanel>
+
+            <ui:Card Grid.Row="2">
+                <DataGrid x:Name="ResultGrid" Style="{StaticResource DarkGrid}"
+                          SelectionMode="Single" SelectionChanged="OnResultSelected"
+                          RowDetailsVisibilityMode="Collapsed">
+                    <DataGrid.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="打开文件" Click="OnOpenFileClick"/>
+                            <MenuItem Header="打开所在位置" Click="OnOpenLocationClick"/>
+                            <MenuItem Header="复制完整路径" Click="OnCopyPathClick"/>
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="文件名" Binding="{Binding FileName}" Width="260"/>
+                        <DataGridTextColumn Header="类型" Binding="{Binding Kind}" Width="60"/>
+                        <DataGridTextColumn Header="会话" Binding="{Binding ChatLabel}" Width="170"/>
+                        <DataGridTextColumn Header="大小" Binding="{Binding SizeText}" Width="100"/>
+                        <DataGridTextColumn Header="时间" Binding="{Binding TimeText}" Width="140"/>
+                        <DataGridTextColumn Header="置信度" Binding="{Binding Confidence}" Width="85"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </ui:Card>
+        </Grid>
+
+        <!-- preview -->
+        <ui:Card Grid.Column="2" Margin="8,0,0,0">
+            <StackPanel>
+                <TextBlock Text="预览" FontSize="16" FontWeight="SemiBold"/>
+                <Border Background="#141417" Height="220" Margin="0,8,0,0" CornerRadius="6">
+                    <Image x:Name="PreviewImage" Stretch="Uniform"/>
+                </Border>
+                <TextBlock x:Name="PreviewInfo" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"
+                           FontFamily="Consolas" Foreground="#BBBBBB"/>
+            </StackPanel>
+        </ui:Card>
+    </Grid>
+</UserControl>
