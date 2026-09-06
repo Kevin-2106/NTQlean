@@ -179,36 +179,64 @@ public partial class SelectView : UserControl
     }
 
     // ── 右键菜单 ──
-    private ResultRow? SelectedRow => ResultGrid.SelectedItem as ResultRow;
+    private static ResultRow? MenuRow(object sender) =>
+        (sender as MenuItem)?.CommandParameter as ResultRow;
 
     private void OnOpenFileClick(object sender, RoutedEventArgs e)
     {
-        var path = SelectedRow?.Row.AbsPath;
-        if (string.IsNullOrEmpty(path) || !File.Exists(path))
-        {
-            MessageBox.Show("文件不存在或路径未解析。", "NTQlean", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        var path = MenuRow(sender)?.Row.AbsPath;
+        if (!TryGetExistingFile(path, out var existingPath)) return;
+
+        TryShellAction("打开文件", existingPath, () =>
+            Process.Start(new ProcessStartInfo(existingPath) { UseShellExecute = true }));
     }
 
     private void OnOpenLocationClick(object sender, RoutedEventArgs e)
     {
-        var path = SelectedRow?.Row.AbsPath;
-        if (string.IsNullOrEmpty(path) || !File.Exists(path))
-        {
-            MessageBox.Show("文件不存在或路径未解析。", "NTQlean", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-        Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\""));
+        var path = MenuRow(sender)?.Row.AbsPath;
+        if (!TryGetExistingFile(path, out var existingPath)) return;
+
+        TryShellAction("打开所在位置", existingPath, () =>
+            Process.Start(new ProcessStartInfo("explorer.exe")
+            {
+                UseShellExecute = true,
+                ArgumentList = { "/select,", existingPath },
+            }));
     }
 
     private void OnCopyPathClick(object sender, RoutedEventArgs e)
     {
-        var path = SelectedRow?.Row.AbsPath;
-        if (string.IsNullOrEmpty(path)) return;
-        Clipboard.SetText(path);
-        MainWindow.SetStatus("路径已复制");
+        var path = MenuRow(sender)?.Row.AbsPath;
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        if (TryShellAction("复制完整路径", path, () => Clipboard.SetText(path)))
+            MainWindow.SetStatus("路径已复制");
+    }
+
+    private static bool TryGetExistingFile(string? path, out string existingPath)
+    {
+        existingPath = path ?? "";
+        if (!string.IsNullOrWhiteSpace(path) && File.Exists(path)) return true;
+
+        MessageBox.Show("文件不存在、已被移动或路径未解析。", "NTQlean",
+            MessageBoxButton.OK, MessageBoxImage.Information);
+        return false;
+    }
+
+    private static bool TryShellAction(string action, string path, Action operation)
+    {
+        try
+        {
+            operation();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppState.WriteLog($"[警告] {action}失败: {ex.Message}");
+            MessageBox.Show($"{action}失败。\n\n路径: {path}\n原因: {ex.Message}", "NTQlean",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
+        }
     }
 
     // ── 会话排除 (= NOT) ──

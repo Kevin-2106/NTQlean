@@ -147,13 +147,19 @@
                     <DataGrid Grid.Row="1" x:Name="ResultGrid" Style="{StaticResource NtqDataGrid}"
                               SelectionMode="Single" SelectionChanged="OnResultSelected"
                               RowDetailsVisibilityMode="Collapsed">
-                        <DataGrid.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="打开文件" Click="OnOpenFileClick"/>
-                                <MenuItem Header="打开所在位置" Click="OnOpenLocationClick"/>
-                                <MenuItem Header="复制完整路径" Click="OnCopyPathClick"/>
+                        <DataGrid.Resources>
+                            <ContextMenu x:Key="ResultRowMenu"
+                                         DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                <MenuItem Header="打开文件" CommandParameter="{Binding}" Click="OnOpenFileClick"/>
+                                <MenuItem Header="打开所在位置" CommandParameter="{Binding}" Click="OnOpenLocationClick"/>
+                                <MenuItem Header="复制完整路径" CommandParameter="{Binding}" Click="OnCopyPathClick"/>
                             </ContextMenu>
-                        </DataGrid.ContextMenu>
+                        </DataGrid.Resources>
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="ContextMenu" Value="{StaticResource ResultRowMenu}"/>
+                            </Style>
+                        </DataGrid.RowStyle>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="文件名" Binding="{Binding FileName}" Width="240"/>
                             <DataGridTextColumn Header="类型" Binding="{Binding Kind}" Width="70"/>
