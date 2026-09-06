@@ -176,6 +176,7 @@ public partial class KeysView : UserControl
         var dbDir = AppState.DbDirBoxText;
         var dataDir = AppState.DataDirBoxText;
         var workspaceDir = AppState.WorkspaceBoxText;
+        var includeNtMsg = IncludeNtMsgBox.IsChecked == true;
 
         if (string.IsNullOrEmpty(dataDir) || !Directory.Exists(dataDir))
         {
@@ -184,13 +185,13 @@ public partial class KeysView : UserControl
         }
 
         _keyRows.Clear(); // status will be refreshed after build
-        BuildButton.IsEnabled = false;
+        SetBuildControlsEnabled(false);
         MainWindow.SetStatus("构建索引中 …");
         try
         {
             var workspace = new Workspace(workspaceDir);
             AppState.Workspace = workspace;
-            var progress = new Progress<string>(AppState.WriteLog);
+            IProgress<string> progress = new Progress<string>(AppState.WriteLog);
 
             if (string.IsNullOrEmpty(dbDir) || !Directory.Exists(dbDir))
             {
@@ -215,8 +216,9 @@ public partial class KeysView : UserControl
 
                 var targets = DecryptService.AccountDbs
                     .Where(n => File.Exists(Path.Combine(dbDir, n))).ToList();
+                var memoryKeys = CopyMemoryKeys(AppState.MemoryKeys);
                 var outcomes = await Task.Run(() => DecryptService.DecryptAll(
-                    workspace, dbDir, string.Empty, targets, force, progress, AppState.MemoryKeys));
+                    workspace, dbDir, string.Empty, targets, force, progress, memoryKeys));
                 foreach (var o in outcomes)
                 {
                     if (o.Error is not null) AppendLog($"[警告] {o.Source}: {o.Error}");
@@ -225,21 +227,22 @@ public partial class KeysView : UserControl
                 }
             }
 
+            var indexKeys = CopyMemoryKeys(AppState.MemoryKeys);
             var summary = await Task.Run(() =>
             {
                 // Optional heavy nt_msg index (per-DB key, D: target for the 13 GB copy).
                 string? ntMsgPlain = null;
-                if (IncludeNtMsgBox.IsChecked == true &&
+                if (includeNtMsg &&
                     !string.IsNullOrEmpty(dbDir) && File.Exists(Path.Combine(dbDir, DecryptService.NtMsgDb)))
                 {
                     var ntMsgWorkspace = new Workspace("D:\\NTQlean\\nt-msg");
-                    AppendLog("解密 nt_msg.db（大库，数分钟）…");
+                    progress.Report("解密 nt_msg.db（大库，数分钟）…");
                     var outcomes = DecryptService.DecryptAll(ntMsgWorkspace, dbDir,
-                        string.Empty, new[] { DecryptService.NtMsgDb }, force, progress, AppState.MemoryKeys);
+                        string.Empty, new[] { DecryptService.NtMsgDb }, force, progress, indexKeys);
                     foreach (var o in outcomes)
                     {
-                        if (o.Error is not null) AppendLog($"[警告] nt_msg.db: {o.Error}");
-                        else if (o.Decrypted) AppendLog($"nt_msg.db: 解密完成（HMAC {o.HmacOk}）");
+                        if (o.Error is not null) progress.Report($"[警告] nt_msg.db: {o.Error}");
+                        else if (o.Decrypted) progress.Report($"nt_msg.db: 解密完成（HMAC {o.HmacOk}）");
                     }
                     var p = ntMsgWorkspace.PlainDbPath(DecryptService.NtMsgDb);
                     if (File.Exists(p)) ntMsgPlain = p;
@@ -263,8 +266,27 @@ public partial class KeysView : UserControl
         }
         finally
         {
-            BuildButton.IsEnabled = true;
+            SetBuildControlsEnabled(true);
         }
+    }
+
+    private static IReadOnlyDictionary<string, List<string>>? CopyMemoryKeys(
+        IReadOnlyDictionary<string, List<string>>? source)
+    {
+        return source?.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value.ToList(),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void SetBuildControlsEnabled(bool enabled)
+    {
+        BuildButton.IsEnabled = enabled;
+        ForceBuildButton.IsEnabled = enabled;
+        DumpKeyButton.IsEnabled = enabled;
+        ApplyManualKeyButton.IsEnabled = enabled;
+        ManualKeyBox.IsEnabled = enabled;
+        IncludeNtMsgBox.IsEnabled = enabled;
     }
 }
 

@@ -19,7 +19,7 @@
                                Text="外部只读扫描（ReadProcessMemory，不注入/不写入），需 QQ 已登录目标账号；仅限本机本人账号使用。key 只保存在内存中。"/>
                     <TextBlock Text="手动粘贴 key（可选，用于当前选中的库）" Foreground="#BBBBBB" Margin="0,10,0,2"/>
                     <DockPanel>
-                        <ui:Button DockPanel.Dock="Right" Content="应用" Margin="6,0,0,0" Click="OnApplyManualKeyClick"/>
+                        <ui:Button x:Name="ApplyManualKeyButton" DockPanel.Dock="Right" Content="应用" Margin="6,0,0,0" Click="OnApplyManualKeyClick"/>
                         <ui:TextBox x:Name="ManualKeyBox"/>
                     </DockPanel>
                     <DataGrid x:Name="KeyGrid" Height="180" Margin="0,12,0,0"
@@ -39,12 +39,12 @@
                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                         <ui:Button x:Name="BuildButton" Appearance="Primary" Icon="{ui:SymbolIcon Database24}"
                                    Content="构建索引（解密副本 → 统一索引）" Click="OnBuildIndexClick"/>
-                        <ui:Button Content="强制重建" Margin="8,0,0,0" Tag="force" Click="OnBuildIndexClick"/>
+                        <ui:Button x:Name="ForceBuildButton" Content="强制重建" Margin="8,0,0,0" Tag="force" Click="OnBuildIndexClick"/>
                     </StackPanel>
                     <CheckBox x:Name="IncludeNtMsgBox" Content="包含 nt_msg 大库（约 13 GB，解密数分钟，用于孤儿引用确认）"
                               Margin="0,8,0,0"/>
                     <TextBlock Foreground="#8A8A93" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"
-                               Text="索引覆盖 files_in_chat / rich_media / file_assistant / group_info（不含 nt_msg 大库）。完成后在「选择与预览」中筛选。"/>
+                               Text="索引覆盖 files_in_chat / rich_media / file_assistant / group_info / emoji；nt_msg 大库按上方选项处理。完成后在「选择与预览」中筛选。"/>
                 </StackPanel>
             </ui:Card>
         </StackPanel>
