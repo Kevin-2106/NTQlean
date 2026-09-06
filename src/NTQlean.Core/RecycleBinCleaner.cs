@@ -27,7 +27,8 @@ public static class CleanupExecutor
     ///  - only files whose abs_path is under one of allowedRoots are touched;
     ///  - every attempted path is recorded in a manifest next to the plan.
     /// </summary>
-    public static CleanupResult Apply(CleanupPlan plan, string manifestPath, bool requireConfirm, params string[] allowedRoots)
+    public static CleanupResult Apply(CleanupPlan plan, string manifestPath, bool requireConfirm,
+        IProgress<CleanupProgress>? progress = null, params string[] allowedRoots)
     {
         if (!requireConfirm)
             throw new InvalidOperationException("回收站清理需要显式的用户确认标志。");
@@ -38,25 +39,37 @@ public static class CleanupExecutor
 
         var results = new List<CleanupResultItem>();
         long freed = 0;
+        var total = plan.Items.Count;
+        var done = 0;
         foreach (var item in plan.Items)
         {
-            if (string.IsNullOrEmpty(item.AbsPath) || !File.Exists(item.AbsPath))
+            string path = item.AbsPath ?? "";
+            string? error;
+            var ok = false;
+
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
             {
-                results.Add(new CleanupResultItem(item.AbsPath, false, "文件不存在或路径未解析"));
-                continue;
+                error = "文件不存在或路径未解析";
+            }
+            else
+            {
+                var full = Path.GetFullPath(path);
+                path = full;
+                if (!roots.Any(r => full.StartsWith(r, StringComparison.OrdinalIgnoreCase)))
+                {
+                    error = "路径不在允许的 nt_data 根内（安全护栏拒绝）";
+                }
+                else
+                {
+                    ok = MoveToRecycleBin(full, out error);
+                    if (ok) freed += item.SizeBytes;
+                }
             }
 
-            var full = Path.GetFullPath(item.AbsPath);
-            var allowed = roots.Any(r => full.StartsWith(r, StringComparison.OrdinalIgnoreCase));
-            if (!allowed)
-            {
-                results.Add(new CleanupResultItem(full, false, "路径不在允许的 nt_data 根内（安全护栏拒绝）"));
-                continue;
-            }
-
-            var ok = MoveToRecycleBin(full, out var error);
-            if (ok) freed += item.SizeBytes;
-            results.Add(new CleanupResultItem(full, ok, error ?? ""));
+            results.Add(new CleanupResultItem(path, ok, error ?? ""));
+            done++;
+            if (progress is not null && (done % 20 == 0 || done == total))
+                progress.Report(new CleanupProgress(done, total, Path.GetFileName(path)));
         }
 
         var manifest = new

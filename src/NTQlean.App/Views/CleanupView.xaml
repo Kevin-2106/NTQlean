@@ -35,11 +35,18 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <ui:InfoBar Title="实际清理（移入回收站，可恢复）"
                             Message="仅处理预演命中的 nt_data 根内文件，并生成 manifest 清单。"
                             Severity="Warning" IsClosable="False"/>
-                <Grid Grid.Row="1" Margin="0,12,0,0">
+                <StackPanel Grid.Row="1" x:Name="ExecProgressPanel" Margin="0,12,0,0" Visibility="Collapsed">
+                    <TextBlock x:Name="ExecStageText" Text="准备清理…" TextTrimming="CharacterEllipsis"
+                               Foreground="{StaticResource NtqTextSecondary}"/>
+                    <ProgressBar x:Name="ExecProgress" Height="4" Margin="0,8,0,0"
+                                 Minimum="0" Maximum="1"/>
+                </StackPanel>
+                <Grid Grid.Row="2" Margin="0,12,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="100"/>
