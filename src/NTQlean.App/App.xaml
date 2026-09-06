@@ -10,6 +10,13 @@
                 <ui:ControlsDictionary/>
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- WPF-UI Card defaults to VerticalContentAlignment=Center, which makes
+                 sparse content float mid-card; NTQlean wants top-flowing forms. -->
+            <Style TargetType="{x:Type ui:Card}" BasedOn="{StaticResource {x:Type ui:Card}}">
+                <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            </Style>
+
             <SolidColorBrush x:Key="NtqTextPrimary" Color="#F2F2F2"/>
             <SolidColorBrush x:Key="NtqTextSecondary" Color="#A9A9B2"/>
             <SolidColorBrush x:Key="NtqSurface" Color="#202024"/>
