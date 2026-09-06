@@ -31,6 +31,16 @@ public partial class MainWindow : FluentWindow
         win?.Dispatcher.BeginInvoke(() => win.StatusText.Text = s);
     }
 
+    public static void SetBusy(bool isBusy, string? status = null)
+    {
+        var win = Application.Current.MainWindow as MainWindow;
+        win?.Dispatcher.BeginInvoke(() =>
+        {
+            win.GlobalProgress.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+            if (status is not null) win.StatusText.Text = status;
+        });
+    }
+
     public static void NavigateTo(string tag)
     {
         var win = Application.Current.MainWindow as MainWindow;

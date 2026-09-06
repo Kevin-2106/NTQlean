@@ -94,7 +94,11 @@ public partial class SelectView : UserControl
             return;
         }
 
-        MainWindow.SetStatus("筛选中 …");
+        ApplyFilterButton.IsEnabled = false;
+        ExportCsvButton.IsEnabled = false;
+        FilterProgress.Visibility = Visibility.Visible;
+        ResultStats.Text = "正在查询索引并生成预演…";
+        MainWindow.SetBusy(true, "筛选中 …");
         try
         {
             var path = IndexPath;
@@ -114,11 +118,22 @@ public partial class SelectView : UserControl
         }
         catch (SelectionExpression.SyntaxException ex)
         {
+            ResultStats.Text = "表达式语法错误";
+            MainWindow.SetStatus("筛选失败：表达式语法错误");
             MessageBox.Show($"表达式语法错误: {ex.Message}", "NTQlean", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         catch (Exception ex)
         {
+            ResultStats.Text = "筛选失败";
+            MainWindow.SetStatus("筛选失败");
             MessageBox.Show($"筛选失败: {ex.Message}", "NTQlean", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            FilterProgress.Visibility = Visibility.Collapsed;
+            ApplyFilterButton.IsEnabled = true;
+            ExportCsvButton.IsEnabled = true;
+            MainWindow.SetBusy(false);
         }
     }
 

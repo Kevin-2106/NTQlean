@@ -20,6 +20,19 @@ public partial class KeysView : UserControl
     {
         LogBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {line}{Environment.NewLine}");
         LogBox.ScrollToEnd();
+        if (BuildProgress.Visibility == Visibility.Visible)
+        {
+            BuildStageText.Text = line;
+            LogStateText.Text = "处理中";
+        }
+    }
+
+    private void SetBusy(bool isBusy, string stage)
+    {
+        BuildProgress.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+        BuildStageText.Text = stage;
+        LogStateText.Text = isBusy ? "处理中" : "空闲";
+        MainWindow.SetBusy(isBusy, stage);
     }
 
     private void RefreshKeyGrid(string? selectedDbForManual = null)
@@ -90,14 +103,15 @@ public partial class KeysView : UserControl
             return;
         }
 
-        DumpKeyButton.IsEnabled = false;
-        MainWindow.SetStatus("扫描 QQ 进程内存（只读）…");
+        SetBuildControlsEnabled(false);
+        SetBusy(true, "扫描 QQ 进程内存（只读）…");
         try
         {
             var specs = await Task.Run(() => KeyDumper.DumpAllKeyspecs(null, out _, out _));
             var key = await Task.Run(() => ValidateKey(probeDb, specs));
             if (key is null)
             {
+                BuildStageText.Text = "未找到匹配的 key";
                 MessageBox.Show("未找到与该账号匹配的 key。\n请确认 QQ 正在运行且已登录该账号。",
                     "NTQlean", MessageBoxButton.OK, MessageBoxImage.Warning);
                 MainWindow.SetStatus("未找到 key");
@@ -105,16 +119,20 @@ public partial class KeysView : UserControl
             }
             AppState.MemoryKeys = specs;
             RefreshKeyGrid();
-            MainWindow.SetStatus("key 已提取（仅内存）");
             AppendLog($"提取完成：{specs.Values.Sum(v => v.Count)} 个 keyspec / {specs.Count} 个 salt。");
+            BuildStageText.Text = "key 已提取（仅内存）";
+            MainWindow.SetStatus("key 已提取（仅内存）");
         }
         catch (Exception ex)
         {
+            BuildStageText.Text = "key 提取失败";
+            MainWindow.SetStatus("key 提取失败");
             MessageBox.Show($"提取失败: {ex.Message}", "NTQlean", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {
-            DumpKeyButton.IsEnabled = true;
+            SetBusy(false, BuildStageText.Text);
+            SetBuildControlsEnabled(true);
         }
     }
 
@@ -186,7 +204,7 @@ public partial class KeysView : UserControl
 
         _keyRows.Clear(); // status will be refreshed after build
         SetBuildControlsEnabled(false);
-        MainWindow.SetStatus("构建索引中 …");
+        SetBusy(true, "准备解密副本…");
         try
         {
             var workspace = new Workspace(workspaceDir);
@@ -257,15 +275,18 @@ public partial class KeysView : UserControl
             AppState.NotifyIndexBuilt();
             MainWindow.NavigateTo("select");
             MainWindow.SetStatus("索引就绪");
+            BuildStageText.Text = "索引就绪";
         }
         catch (Exception ex)
         {
             AppendLog($"[错误] {ex.Message}");
+            BuildStageText.Text = "索引构建失败";
             MessageBox.Show($"索引构建失败: {ex.Message}", "NTQlean", MessageBoxButton.OK, MessageBoxImage.Error);
             MainWindow.SetStatus("索引失败");
         }
         finally
         {
+            SetBusy(false, BuildStageText.Text);
             SetBuildControlsEnabled(true);
         }
     }

@@ -4,62 +4,108 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
     <Grid Margin="16">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="400"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="420" MinWidth="380"/>
+            <ColumnDefinition Width="*" MinWidth="400"/>
         </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Column="0" Margin="0,0,8,0">
-            <ui:Card>
-                <StackPanel>
-                    <TextBlock Text="密钥（每个数据库独立）" FontSize="16" FontWeight="SemiBold"/>
-                    <ui:Button x:Name="DumpKeyButton" Appearance="Primary" Icon="{ui:SymbolIcon Key24}"
-                               Content="从运行中的 QQ 提取全部 key（只读内存扫描）"
-                               Margin="0,10,0,0" Click="OnDumpKeyClick"/>
-                    <TextBlock Foreground="#8A8A93" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"
-                               Text="外部只读扫描（ReadProcessMemory，不注入/不写入），需 QQ 已登录目标账号；仅限本机本人账号使用。key 只保存在内存中。"/>
-                    <TextBlock Text="手动粘贴 key（可选，用于当前选中的库）" Foreground="#BBBBBB" Margin="0,10,0,2"/>
-                    <DockPanel>
-                        <ui:Button x:Name="ApplyManualKeyButton" DockPanel.Dock="Right" Content="应用" Margin="6,0,0,0" Click="OnApplyManualKeyClick"/>
+        <Grid Grid.Column="0" Margin="0,0,6,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="3*"/>
+                <RowDefinition Height="2*"/>
+            </Grid.RowDefinitions>
+
+            <ui:Card Grid.Row="0" Margin="0,0,0,6">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="密钥（每个数据库独立）" Style="{StaticResource SectionTitle}"/>
+                    <ui:Button Grid.Row="1" x:Name="DumpKeyButton" Appearance="Primary"
+                               Icon="{ui:SymbolIcon Key24}" HorizontalAlignment="Left"
+                               Content="从运行中的 QQ 提取全部 key" Margin="0,12,0,0"
+                               Click="OnDumpKeyClick"/>
+                    <TextBlock Grid.Row="2" Style="{StaticResource HintText}" Margin="0,7,0,0"
+                               Text="外部只读内存扫描，不注入、不写入；key 只保存在本次运行的内存中。"/>
+                    <TextBlock Grid.Row="3" Text="手动粘贴 key（可选）" Style="{StaticResource FormLabel}"/>
+                    <Grid Grid.Row="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="72"/>
+                        </Grid.ColumnDefinitions>
                         <ui:TextBox x:Name="ManualKeyBox"/>
-                    </DockPanel>
-                    <DataGrid x:Name="KeyGrid" Height="180" Margin="0,12,0,0"
-                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column">
+                        <ui:Button Grid.Column="1" x:Name="ApplyManualKeyButton" Content="应用"
+                                   Margin="8,0,0,0" Click="OnApplyManualKeyClick"/>
+                    </Grid>
+                    <DataGrid Grid.Row="5" x:Name="KeyGrid" MinHeight="150" Margin="0,12,0,0"
+                              Style="{StaticResource NtqDataGrid}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="数据库" Binding="{Binding DbName}" Width="150"/>
-                            <DataGridTextColumn Header="状态" Binding="{Binding State}" Width="110"/>
-                            <DataGridTextColumn Header="key（掩码）" Binding="{Binding KeyMask}" Width="*"/>
+                            <DataGridTextColumn Header="数据库" Binding="{Binding DbName}" Width="*" MinWidth="125"/>
+                            <DataGridTextColumn Header="状态" Binding="{Binding State}" Width="100"/>
+                            <DataGridTextColumn Header="key（掩码）" Binding="{Binding KeyMask}" Width="110"/>
                         </DataGrid.Columns>
                     </DataGrid>
-                </StackPanel>
+                </Grid>
             </ui:Card>
 
-            <ui:Card Margin="0,8,0,0">
-                <StackPanel>
-                    <TextBlock Text="构建索引" FontSize="16" FontWeight="SemiBold"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+            <ui:Card Grid.Row="1" Margin="0,6,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="构建索引" Style="{StaticResource SectionTitle}"/>
+                    <Grid Grid.Row="1" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
                         <ui:Button x:Name="BuildButton" Appearance="Primary" Icon="{ui:SymbolIcon Database24}"
-                                   Content="构建索引（解密副本 → 统一索引）" Click="OnBuildIndexClick"/>
-                        <ui:Button x:Name="ForceBuildButton" Content="强制重建" Margin="8,0,0,0" Tag="force" Click="OnBuildIndexClick"/>
+                                   Content="构建索引" Click="OnBuildIndexClick"/>
+                        <ui:Button Grid.Column="1" x:Name="ForceBuildButton" Content="强制重建"
+                                   Margin="8,0,0,0" Tag="force" Click="OnBuildIndexClick"/>
+                    </Grid>
+                    <CheckBox Grid.Row="2" x:Name="IncludeNtMsgBox"
+                              Content="包含 nt_msg 大库（约 13 GB，用于孤儿引用确认）"
+                              Margin="0,10,0,0"/>
+                    <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                        <TextBlock x:Name="BuildStageText" Text="等待构建"
+                                   Foreground="{StaticResource NtqTextSecondary}" FontSize="12"/>
+                        <ProgressBar x:Name="BuildProgress" Height="4" Margin="0,6,0,0"
+                                     IsIndeterminate="True" Visibility="Collapsed"/>
                     </StackPanel>
-                    <CheckBox x:Name="IncludeNtMsgBox" Content="包含 nt_msg 大库（约 13 GB，解密数分钟，用于孤儿引用确认）"
-                              Margin="0,8,0,0"/>
-                    <TextBlock Foreground="#8A8A93" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"
-                               Text="索引覆盖 files_in_chat / rich_media / file_assistant / group_info / emoji；nt_msg 大库按上方选项处理。完成后在「选择与预览」中筛选。"/>
-                </StackPanel>
+                    <TextBlock Grid.Row="4" Style="{StaticResource HintText}" Margin="0,10,0,0"
+                               Text="覆盖 files_in_chat、rich_media、file_assistant、group_info 和 emoji；nt_msg 按上方选项处理。"/>
+                </Grid>
             </ui:Card>
-        </StackPanel>
+        </Grid>
 
-        <ui:Card Grid.Column="1" Margin="8,0,0,0">
+        <ui:Card Grid.Column="1" Margin="6,0,0,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Text="进度日志" FontSize="16" FontWeight="SemiBold"/>
-                <TextBox Grid.Row="1" x:Name="LogBox" IsReadOnly="True" Margin="0,8,0,0"
-                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
-                         FontFamily="Consolas" FontSize="12"
-                         Background="#141417" Foreground="#D8D8D8" BorderBrush="#33333A"/>
+                <Grid Grid.Row="0" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="进度日志" Style="{StaticResource SectionTitle}"/>
+                    <Border Grid.Column="1" Background="{StaticResource NtqSurfaceRaised}"
+                            CornerRadius="3" Padding="8,3" Margin="12,0,0,0">
+                        <TextBlock x:Name="LogStateText" Text="空闲"
+                                   Foreground="{StaticResource NtqTextSecondary}" VerticalAlignment="Center"/>
+                    </Border>
+                </Grid>
+                <TextBox Grid.Row="1" x:Name="LogBox" Style="{StaticResource OutputTextBox}"/>
             </Grid>
         </ui:Card>
     </Grid>

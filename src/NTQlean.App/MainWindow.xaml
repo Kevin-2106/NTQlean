@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         Title="NTQlean — NTQQ 本地存储分析与清理"
-        Width="1320" Height="840" MinWidth="1100" MinHeight="700"
+        Width="1360" Height="860" MinWidth="1120" MinHeight="720"
         ExtendsContentIntoTitleBar="True"
         WindowBackdropType="Mica"
         WindowStartupLocation="CenterScreen">
@@ -19,46 +19,64 @@
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="210"/>
+                <ColumnDefinition Width="190"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Fluent 侧边导航 -->
-            <Border Grid.Column="0" Background="#20202400" Padding="10,8,10,8">
-                <StackPanel>
-                    <ui:Button x:Name="NavSources" Tag="sources" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Icon="{ui:SymbolIcon Home24}"
-                               Content="数据源" Appearance="Primary" Margin="0,2"
-                               Click="OnNavButtonClick"/>
-                    <ui:Button x:Name="NavKeys" Tag="keys" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Icon="{ui:SymbolIcon Key24}"
-                               Content="密钥与索引" Appearance="Secondary" Margin="0,2"
-                               Click="OnNavButtonClick"/>
-                    <ui:Button x:Name="NavSelect" Tag="select" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Icon="{ui:SymbolIcon Filter24}"
-                               Content="选择与预览" Appearance="Secondary" Margin="0,2"
-                               Click="OnNavButtonClick"/>
-                    <ui:Button x:Name="NavCleanup" Tag="cleanup" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Icon="{ui:SymbolIcon Delete24}"
-                               Content="清理" Appearance="Secondary" Margin="0,2"
-                               Click="OnNavButtonClick"/>
-
-                    <Border Margin="0,16,0,0" Padding="10">
-                        <TextBlock Text="安全边界&#x0a;· QQ 原文件只读&#x0a;· 清理默认预演&#x0a;· 实际清理走回收站"
-                                   FontSize="11" Foreground="#8A8A93" TextWrapping="Wrap" LineHeight="18"/>
+            <Border Grid.Column="0" Background="#20202400" Padding="10,10,10,8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="工作流程" Margin="10,0,0,8"
+                               Foreground="{StaticResource NtqTextSecondary}" FontSize="11"/>
+                    <StackPanel Grid.Row="1">
+                        <ui:Button x:Name="NavSources" Tag="sources" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Icon="{ui:SymbolIcon Home24}"
+                                   Content="数据源" Appearance="Primary" Margin="0,2"
+                                   Click="OnNavButtonClick"/>
+                        <ui:Button x:Name="NavKeys" Tag="keys" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Icon="{ui:SymbolIcon Key24}"
+                                   Content="密钥与索引" Appearance="Secondary" Margin="0,2"
+                                   Click="OnNavButtonClick"/>
+                        <ui:Button x:Name="NavSelect" Tag="select" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Icon="{ui:SymbolIcon Filter24}"
+                                   Content="选择与预览" Appearance="Secondary" Margin="0,2"
+                                   Click="OnNavButtonClick"/>
+                        <ui:Button x:Name="NavCleanup" Tag="cleanup" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Icon="{ui:SymbolIcon Delete24}"
+                                   Content="清理" Appearance="Secondary" Margin="0,2"
+                                   Click="OnNavButtonClick"/>
+                    </StackPanel>
+                    <Border Grid.Row="2" BorderBrush="{StaticResource NtqStroke}" BorderThickness="1,1,0,0"
+                            Padding="10,12,4,4">
+                        <TextBlock Text="QQ 原文件只读&#x0a;清理默认预演&#x0a;实际清理进入回收站"
+                                   Style="{StaticResource HintText}" LineHeight="18"/>
                     </Border>
-                </StackPanel>
+                </Grid>
             </Border>
 
             <ContentControl Grid.Column="1" x:Name="PageHost"/>
         </Grid>
 
-        <Border Grid.Row="2" Background="#16161A" Padding="12,5">
-            <DockPanel>
-                <TextBlock Text="NTQlean · Phase 2" Foreground="#8A8A93" FontSize="11"/>
-                <TextBlock x:Name="StatusText" DockPanel.Dock="Right" HorizontalAlignment="Right"
-                           Foreground="#7FBF7F" FontSize="12"/>
-            </DockPanel>
+        <Border Grid.Row="2" Background="#16161A" BorderBrush="{StaticResource NtqStroke}"
+                BorderThickness="0,1,0,0" Padding="12,7">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="160"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="NTQlean · Phase 2" Foreground="{StaticResource NtqTextSecondary}"
+                           FontSize="11" VerticalAlignment="Center"/>
+                <ProgressBar x:Name="GlobalProgress" Grid.Column="1" Height="3" Margin="14,0"
+                             VerticalAlignment="Center" IsIndeterminate="True" Visibility="Collapsed"/>
+                <TextBlock x:Name="StatusText" Grid.Column="2" HorizontalAlignment="Right"
+                           Foreground="{StaticResource NtqTextSecondary}" FontSize="12"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+            </Grid>
         </Border>
     </Grid>
 </ui:FluentWindow>

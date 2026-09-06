@@ -14,6 +14,10 @@ public partial class CleanupView : UserControl
         AppState.PlanUpdated += () => Dispatcher.BeginInvoke(() =>
         {
             ReportBox.Text = AppState.CleanupReport ?? ReportBox.Text;
+            var plan = AppState.Plan;
+            PlanSummaryText.Text = plan is null
+                ? "尚无预演结果"
+                : $"{plan.Items.Count:N0} 个文件 · {plan.TotalBytes / 1073741824.0:F2} GB · 等待人工确认";
         });
     }
 

@@ -12,29 +12,50 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Text="预演报告（不会删除任何文件）" FontSize="16" FontWeight="SemiBold"/>
-                <TextBox Grid.Row="1" x:Name="ReportBox" IsReadOnly="True" Margin="0,8,0,0"
-                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
-                         FontFamily="Consolas" FontSize="12"
-                         Background="#141417" Foreground="#D8D8D8" BorderBrush="#33333A"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="预演报告" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock Grid.Column="1" Text="此处不会删除文件" Style="{StaticResource HintText}"
+                               VerticalAlignment="Center"/>
+                </Grid>
+                <TextBlock Grid.Row="1" x:Name="PlanSummaryText" Text="尚无预演结果"
+                           Foreground="{StaticResource NtqTextSecondary}" Margin="0,8,0,0"/>
+                <TextBox Grid.Row="2" x:Name="ReportBox" Style="{StaticResource OutputTextBox}" Margin="0,10,0,0"/>
             </Grid>
         </ui:Card>
 
-        <ui:Card Grid.Row="1" Margin="0,8,0,0">
-            <StackPanel>
+        <ui:Card Grid.Row="1" Margin="0,12,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
                 <ui:InfoBar Title="实际清理（移入回收站，可恢复）"
-                         Message="此操作会把「选择与预览」命中的文件移入系统回收站。NTQlean 只触碰 nt_data 根内的文件，并生成 manifest 清单。"
-                         Severity="Warning" IsClosable="False"/>
-                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                    <TextBlock Text='输入 "清理" 以启用:' VerticalAlignment="Center"/>
-                    <ui:TextBox x:Name="ConfirmBox" Width="90" Margin="8,0,0,0"/>
-                    <CheckBox x:Name="UnderstandBox" Content="我已检查预演报告并理解影响范围" Margin="16,0,0,0" VerticalAlignment="Center"/>
-                    <ui:Button x:Name="ExecButton" Appearance="Danger" Icon="{ui:SymbolIcon Delete24}"
-                               Content="执行清理（回收站）" Margin="16,0,0,0" Click="OnExecuteCleanupClick"/>
-                </StackPanel>
-            </StackPanel>
+                            Message="仅处理预演命中的 nt_data 根内文件，并生成 manifest 清单。"
+                            Severity="Warning" IsClosable="False"/>
+                <Grid Grid.Row="1" Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text='输入“清理”' VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ui:TextBox Grid.Column="1" x:Name="ConfirmBox"/>
+                    <CheckBox Grid.Column="2" x:Name="UnderstandBox"
+                              Content="我已检查预演报告并理解影响范围"
+                              Margin="18,0" VerticalAlignment="Center"/>
+                    <ui:Button Grid.Column="3" x:Name="ExecButton" Appearance="Danger"
+                               Icon="{ui:SymbolIcon Delete24}" Content="执行清理（回收站）"
+                               MinWidth="170" Click="OnExecuteCleanupClick"/>
+                </Grid>
+            </Grid>
         </ui:Card>
     </Grid>
 </UserControl>
