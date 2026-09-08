@@ -1,0 +1,84 @@
+<ui:FluentWindow x:Class="NTQlean.App.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="NTQlean — 使用条款与免责声明"
+        Width="680" Height="640" MinWidth="560" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        ExtendsContentIntoTitleBar="True"
+        WindowBackdropType="Mica">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="使用条款与免责声明" CanMaximize="False"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,8,24,8">
+            <StackPanel>
+                <TextBlock Text="关于 NTQlean" FontSize="22" FontWeight="SemiBold"
+                           Foreground="{StaticResource NtqTextPrimary}"/>
+                <TextBlock x:Name="VersionText" Margin="0,4,0,0"
+                           Foreground="{StaticResource NtqTextSecondary}" FontSize="12"/>
+                <TextBlock Margin="0,10,0,0" TextWrapping="Wrap"
+                           Foreground="{StaticResource NtqTextPrimary}"
+                           Text="面向 Windows NTQQ 的本地存储分析与清理工具：只读分析 · 副本解密 · 预演优先 · 回收站式清理。不联网、不上传、无遥测；QQ 原始文件仅以只读方式打开。"/>
+
+                <TextBlock Text="使用条款与免责声明" FontSize="16" FontWeight="SemiBold" Margin="0,20,0,6"
+                           Foreground="{StaticResource NtqTextPrimary}"/>
+                <TextBlock Style="{StaticResource HintText}" FontSize="12" Margin="0,0,0,8"
+                           Text="继续使用本工具即表示你已阅读、理解并同意以下条款；如不同意，请立即停止使用并删除本软件。完整版本见仓库 README 与 LICENSE。"/>
+
+                <TextBlock Text="1. 非官方工具" FontWeight="SemiBold" Margin="0,8,0,2"
+                           Foreground="{StaticResource NtqTextPrimary}"/>
+                <TextBlock Style="{StaticResource HintText}" FontSize="12" TextWrapping="Wrap"
+                           Text="本项目是社区开源工具，与腾讯（QQ / NTQQ 的开发与运营方）没有任何关联，未获其授权、支持或认可。QQ、NTQQ 及相关名称与商标归其权利人所有。"/>
+
+                <TextBlock Text="2. 仅限本人本机使用" FontWeight="SemiBold" Margin="0,10,0,2"
+                           Foreground="{StaticResource NtqTextPrimary}"/>
+                <TextBlock Style="{StaticResource HintText}" FontSize="12" TextWrapping="Wrap"
+                           Text="本工具仅面向你本人、在你本人的设备上、对你自己的 QQ 账号数据进行分析与清理。严禁用于他人设备、他人账号或任何未经授权的场景。"/>
+
+                <TextBlock Text="3. 密钥提取的合规风险" FontWeight="SemiBold" Margin="0,10,0,2"
+                           Foreground="{StaticResource NtqTextPrimary}"/>
+                <TextBlock Style="{StaticResource HintText}" FontSize="12" TextWrapping="Wrap"
+                           Text="密钥提取通过对运行中的 QQ 进程进行只读内存扫描实现（不注入、不 hook、不调试、不写入）。此类行为可能受到 QQ 用户协议的限制或被视为违规，也可能触发安全软件告警。是否使用该功能由你自行决定，相关合规责任由你自行承担。"/>
+
+                <TextBlock Text="4. 不提供担保" FontWeight="SemiBold" Margin="0,10,0,2"
+                           Foreground="{StaticResource NtqTextPrimary}"/>
+                <TextBlock Style="{StaticResource HintText}" FontSize="12" TextWrapping="Wrap"
+                           Text="本软件按“现状”（AS-IS）提供，不提供任何明示或默示的担保。尽管清理默认只预演、实际删除只进回收站，仍无法完全排除数据丢失或程序异常的可能。使用前请自行备份重要数据。因使用本工具造成的任何直接或间接损失（包括但不限于数据丢失、账号功能受限等），作者不承担责任。"/>
+
+                <TextBlock Text="5. 隐私承诺" FontWeight="SemiBold" Margin="0,10,0,2"
+                           Foreground="{StaticResource NtqTextPrimary}"/>
+                <TextBlock Style="{StaticResource HintText}" FontSize="12" TextWrapping="Wrap"
+                           Text="本工具不联网、不上传任何数据、不含遥测；账号密钥仅存在于运行内存，不落盘、不写日志；解密副本与索引只写入你指定的工作区；自动化测试从不执行实际清理动作。"/>
+
+                <TextBlock Text="6. 许可证" FontWeight="SemiBold" Margin="0,10,0,2"
+                           Foreground="{StaticResource NtqTextPrimary}"/>
+                <TextBlock Style="{StaticResource HintText}" FontSize="12" TextWrapping="Wrap"
+                           Text="本项目以 MIT License 发布；免责声明与许可证并行生效，在法律允许的范围内免责声明条款优先。"/>
+
+                <TextBlock Style="{StaticResource HintText}" FontSize="11" Margin="0,16,0,0"
+                           Text="仓库：https://github.com/Kevin-2106/NTQlean"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" Background="#16161A" BorderBrush="{StaticResource NtqStroke}"
+                BorderThickness="0,1,0,0" Padding="16,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="点击下方按钮即表示你已阅读并同意上述条款" VerticalAlignment="Center"
+                           Foreground="{StaticResource NtqTextSecondary}" FontSize="12" TextWrapping="Wrap"/>
+                <ui:Button Grid.Column="1" x:Name="AgreeButton" Appearance="Primary"
+                           Content="我已阅读并同意" MinWidth="150" Margin="16,0,0,0" Click="OnAgreeClick"/>
+            </Grid>
+        </Border>
+    </Grid>
+</ui:FluentWindow>

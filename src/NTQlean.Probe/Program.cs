@@ -31,12 +31,14 @@ static int Unknown(string cmd)
 static int PrintUsage()
 {
     Console.WriteLine("""
-        ntqlean-probe — Phase 0 read-only NTQQ database research tool
+        ntqlean-probe — NTQQ local storage research & analysis CLI (read-only on QQ files)
 
         Commands:
           discover                     Locate NTQQ data roots, accounts and database files
           inspect-db <path>            Analyze one database file header / format (no key needed)
           open-db <path> [options]     Snapshot a database copy, decrypt with a key, dump schema
+          get-key --db <path>          Extract account DB keys via read-only memory scan of the
+                                       running QQ process (own machine & own account ONLY!)
           test-media <plain-db> <nt_data_dir>
                                        Probe media metadata tables in a decrypted copy and
                                        try to map samples to files under nt_data
@@ -66,8 +68,19 @@ static int PrintUsage()
           --pages <n>      Decrypt only the first n pages (fast schema recon of huge DBs)
           --out <dir>      Workspace directory (default: %TEMP%\NTQlean\<timestamp>)
 
+        get-key options:
+          --db <path>      One encrypted account database (its salt validates candidates)
+          --mask           Show only the first/last 4 characters of each key
+
         Safety: this tool never writes to QQ-owned files. All analysis happens on copies.
-        The key is never logged, echoed, or persisted.
+        The key is never logged, echoed, or persisted. 'select' is always a dry run.
+
+        DISCLAIMER / 免责声明:
+          Unofficial community tool — NOT affiliated with or endorsed by Tencent.
+          Use only on your own machine and your own account, at your own risk.
+          Memory-scan key extraction may be restricted by the QQ Terms of Service;
+          compliance is your responsibility. Provided AS-IS (MIT), no warranty:
+          back up important data before use. See README.md and LICENSE for details.
         """);
     return 0;
 }

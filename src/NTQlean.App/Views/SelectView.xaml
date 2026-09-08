@@ -82,6 +82,9 @@
             </ScrollViewer>
             <ui:Button Grid.Row="1" x:Name="ApplyFilterButton" Appearance="Primary" Content="应用筛选（预演）"
                        Icon="{ui:SymbolIcon Filter24}" Margin="0,12,0,0" Click="OnApplyFilterClick"/>
+            <TextBlock Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center"
+                       Style="{StaticResource HintText}" Margin="0,12,44,0"
+                       Text="本页只读，不会删除文件&#x0a;删除仅发生在“④ 清理”页"/>
             </Grid>
         </ui:Card>
 

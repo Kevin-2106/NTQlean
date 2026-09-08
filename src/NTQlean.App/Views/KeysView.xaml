@@ -30,8 +30,8 @@
                                Content="从运行中的 QQ 提取全部 key" Margin="0,12,0,0"
                                Click="OnDumpKeyClick"/>
                     <TextBlock Grid.Row="2" Style="{StaticResource HintText}" Margin="0,7,0,0"
-                               Text="外部只读内存扫描，不注入、不写入；key 只保存在本次运行的内存中。"/>
-                    <TextBlock Grid.Row="3" Text="手动粘贴 key（可选）" Style="{StaticResource FormLabel}"/>
+                               Text="外部只读内存扫描（ReadProcessMemory），不注入、不 hook、不调试、不写入；提取后用数据库 salt 交叉验证。key 只保存在本次运行的内存中，不落盘、不写日志。仅限本人本机账号使用；该操作可能受 QQ 用户协议限制，合规责任由使用者自行承担。"/>
+                    <TextBlock Grid.Row="3" Text="手动粘贴 key（可选，来自 ntqlean-probe get-key）" Style="{StaticResource FormLabel}"/>
                     <Grid Grid.Row="4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>

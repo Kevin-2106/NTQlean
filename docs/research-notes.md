@@ -1,5 +1,9 @@
 # NTQlean Phase 0 — Research Notes
 
+> ⚠️ **免责声明**：本项目为非官方社区工具，与腾讯无关；仅限在本人设备上分析本人账号数据。
+> 密钥提取使用只读内存扫描，可能受 QQ 用户协议限制，合规责任由使用者自行承担。
+> 完整条款见仓库根目录 README 与 LICENSE。
+>
 > 阶段目标：验证在 **不注入 QQ、不修改 QQ、不依赖插件框架、严格只读** 的前提下，
 > 能否安全读取本机 Windows NTQQ 的本地数据库，并确认其中存在构建存储分析器所需的信息。
 >
@@ -20,13 +24,13 @@
 
 ## 2. 数据目录发现（Q1）
 
-本机 Documents 被重定向至 OneDrive（`C:\Users\K2106\OneDrive\文档`），QQ 数据分布在两处：
+本机 Documents 被重定向至 OneDrive（`%USERPROFILE%\OneDrive\文档`），QQ 数据分布在两处：
 
 1. **活跃数据根**：`D:\Tencent Files\QQ\Tencent Files\`（自定义嵌套布局，昨日仍有写入）
    - 账号 `554****906`（活跃，nt_msg.db ≈ **13.1 GB**，最后写入时间为研究当日）
    - 账号 `399****582`、`283****067`、`181****916`（历史账号，数 MB 级）
    - 全局目录 `nt_qq\global\nt_db\`（login.db / Registry.db / sign.db / bc_09.db）
-2. **旧数据根**：`C:\Users\K2106\OneDrive\文档\Tencent Files\`（2024 年残留，同一账号 554****906）
+2. **旧数据根**：`%USERPROFILE%\OneDrive\文档\Tencent Files\`（2024 年残留，同一账号 554****906）
 
 账号目录布局（两处一致）：
 

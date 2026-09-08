@@ -23,6 +23,7 @@ public partial class MainWindow : FluentWindow
             _keysView.AppendLog(s);
             StatusText.Text = s.Length > 70 ? s[..70] + "…" : s;
         });
+        Loaded += (_, _) => AboutWindow.ShowOnFirstRun(this);
     }
 
     public static void SetStatus(string s)
@@ -50,6 +51,12 @@ public partial class MainWindow : FluentWindow
     private void OnNavButtonClick(object sender, RoutedEventArgs e)
     {
         if (sender is UiButton { Tag: string tag }) ShowPage(tag);
+    }
+
+    private void OnAboutClick(object sender, RoutedEventArgs e)
+    {
+        var window = new AboutWindow { Owner = this };
+        window.ShowDialog();
     }
 
     private void ShowPage(string tag)

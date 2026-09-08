@@ -36,7 +36,7 @@
                     </DataGrid.Columns>
                 </DataGrid>
                 <TextBlock Grid.Row="3" Margin="0,10,0,0" Style="{StaticResource HintText}"
-                           Text="QQ 运行时仍可共享读取；完全退出 QQ 后创建的快照最可靠。"/>
+                           Text="QQ 运行时仍可共享读取；完全退出 QQ 后创建的快照最可靠。建议在执行清理前完全退出 QQ。"/>
             </Grid>
         </ui:Card>
 
@@ -87,7 +87,7 @@
                 </Grid>
 
                 <ui:InfoBar Grid.Row="7" x:Name="SafetyBar" Title="安全说明"
-                            Message="QQ 原文件只以只读方式打开；解密副本与索引仅写入工作区。"
+                            Message="QQ 原文件只以只读方式打开；解密副本与索引仅写入工作区。本工具不联网、不上传、无遥测，仅供你清理本人账号的数据（详见左下角“使用条款与免责声明”）。"
                             IsClosable="False" Severity="Informational" Margin="0,16,0,0"/>
                 <ui:Button Grid.Row="9" Appearance="Primary" Content="下一步：密钥与索引"
                            Icon="{ui:SymbolIcon ArrowRight24}" HorizontalAlignment="Right"

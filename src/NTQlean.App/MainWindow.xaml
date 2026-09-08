@@ -50,11 +50,17 @@
                                    Content="清理" Appearance="Secondary" Margin="0,2"
                                    Click="OnNavButtonClick"/>
                     </StackPanel>
-                    <Border Grid.Row="2" BorderBrush="{StaticResource NtqStroke}" BorderThickness="1,1,0,0"
-                            Padding="10,12,4,4">
-                        <TextBlock Text="QQ 原文件只读&#x0a;清理默认预演&#x0a;实际清理进入回收站"
-                                   Style="{StaticResource HintText}" LineHeight="18"/>
-                    </Border>
+                    <StackPanel Grid.Row="2">
+                        <Border BorderBrush="{StaticResource NtqStroke}" BorderThickness="1,1,0,0"
+                                Padding="10,12,4,4">
+                            <TextBlock Text="QQ 原文件只读&#x0a;清理默认预演&#x0a;实际清理进入回收站"
+                                       Style="{StaticResource HintText}" LineHeight="18"/>
+                        </Border>
+                        <ui:Button x:Name="NavAbout" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Icon="{ui:SymbolIcon Info24}"
+                                   Content="使用条款与免责声明" Appearance="Secondary" Margin="0,8,0,0"
+                                   Click="OnAboutClick"/>
+                    </StackPanel>
                 </Grid>
             </Border>
 
@@ -69,7 +75,8 @@
                     <ColumnDefinition Width="160"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="NTQlean · Phase 2" Foreground="{StaticResource NtqTextSecondary}"
+                <TextBlock Text="NTQlean · 仅供个人清理自己的数据 · 非官方工具，与腾讯无关"
+                           Foreground="{StaticResource NtqTextSecondary}"
                            FontSize="11" VerticalAlignment="Center"/>
                 <ProgressBar x:Name="GlobalProgress" Grid.Column="1" Height="3" Margin="14,0"
                              VerticalAlignment="Center" IsIndeterminate="True" Visibility="Collapsed"/>

@@ -38,7 +38,7 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <ui:InfoBar Title="实际清理（移入回收站，可恢复）"
-                            Message="仅处理预演命中的 nt_data 根内文件，并生成 manifest 清单。"
+                            Message="仅处理预演命中且位于所配置 nt_data 根内的文件，并生成 manifest 清单以便追溯。执行前建议完全退出 QQ；回收站清空后文件将无法恢复，重要数据请先备份。"
                             Severity="Warning" IsClosable="False"/>
                 <StackPanel Grid.Row="1" x:Name="ExecProgressPanel" Margin="0,12,0,0" Visibility="Collapsed">
                     <TextBlock x:Name="ExecStageText" Text="准备清理…" TextTrimming="CharacterEllipsis"
@@ -55,9 +55,11 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Text='输入“清理”' VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <ui:TextBox Grid.Column="1" x:Name="ConfirmBox"/>
-                    <CheckBox Grid.Column="2" x:Name="UnderstandBox"
-                              Content="我已检查预演报告并理解影响范围"
-                              Margin="18,0" VerticalAlignment="Center"/>
+                    <CheckBox Grid.Column="2" x:Name="UnderstandBox" Margin="18,0"
+                              VerticalAlignment="Center">
+                        <TextBlock Text="我已检查预演报告，理解删除范围与风险，并为重要数据做好了备份"
+                                   TextWrapping="Wrap"/>
+                    </CheckBox>
                     <ui:Button Grid.Column="3" x:Name="ExecButton" Appearance="Danger"
                                Icon="{ui:SymbolIcon Delete24}" Content="执行清理（回收站）"
                                MinWidth="170" Click="OnExecuteCleanupClick"/>

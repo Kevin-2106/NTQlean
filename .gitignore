@@ -32,3 +32,6 @@ Thumbs.db
 ## Secrets (defense in depth: keys must never be stored anyway)
 *.key
 .env
+
+## Local agent state
+.zcode/
