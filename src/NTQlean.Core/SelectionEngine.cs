@@ -6,7 +6,12 @@ namespace NTQlean.Core;
 
 public sealed record SelectionOptions
 {
-    /// <summary>Confidence levels to include. Default: exact + strong (deletion-safe).</summary>
+    /// <summary>
+    /// Confidence levels to include. Ladder: exact (path and size match) &gt;
+    /// strong (path match, size mismatch) &gt; heuristic (filename fallback after
+    /// the recorded path failed) &gt; missing (file not found, never selected).
+    /// Default: exact + strong (deletion-safe).
+    /// </summary>
     public HashSet<string> Confidences { get; init; } = new(StringComparer.OrdinalIgnoreCase) { "exact", "strong" };
 
     /// <summary>Kinds to include; empty = all.</summary>

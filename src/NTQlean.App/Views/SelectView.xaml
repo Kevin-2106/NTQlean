@@ -28,10 +28,10 @@
                     </WrapPanel>
 
                     <TextBlock Text="置信度" Style="{StaticResource FormLabel}"/>
-                    <CheckBox x:Name="CExact" Content="exact（路径和大小匹配）" IsChecked="True" Margin="0,3"/>
-                    <CheckBox x:Name="CStrong" Content="strong（路径匹配）" IsChecked="True" Margin="0,3"/>
-                    <CheckBox x:Name="CHeuristic" Content="heuristic（名称相似）" Margin="0,3"/>
-                    <CheckBox x:Name="COrphan" Content="orphan（无数据库引用）" Margin="0,3"/>
+                    <CheckBox x:Name="CExact" Content="exact（路径与大小均吻合）" IsChecked="True" Margin="0,3"/>
+                    <CheckBox x:Name="CStrong" Content="strong（路径吻合，大小不一致）" IsChecked="True" Margin="0,3"/>
+                    <CheckBox x:Name="CHeuristic" Content="heuristic（路径已失效，按文件名匹配）" Margin="0,3"/>
+                    <CheckBox x:Name="COrphan" Content="orphan（无任何数据库记录的文件）" Margin="0,3"/>
                     <CheckBox x:Name="CNoRefOrphan" Content="孤儿中排除聊天记录引用" IsChecked="True" Margin="0,3"/>
 
                     <TextBlock Text="时间范围" Style="{StaticResource FormLabel}"/>

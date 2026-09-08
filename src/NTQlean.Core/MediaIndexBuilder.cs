@@ -462,7 +462,9 @@ public static partial class MediaIndexBuilder
                 {
                     resolvedRel = hit.rel;
                     actualSize = hit.size;
-                    confidence = (sizeDb is > 0 && sizeDb != hit.size) ? "strong" : "exact";
+                    // Filename-only evidence: the recorded path no longer resolves, so
+                    // even a size agreement cannot lift this above heuristic.
+                    confidence = "heuristic";
                 }
             }
 
