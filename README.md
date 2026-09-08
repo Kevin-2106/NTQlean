@@ -143,7 +143,9 @@ dotnet run --project src/NTQlean.App
 - **高级布尔表达式**（覆盖时间和大小条件）：
   `size >= 10MB AND time < 2025-01-01 AND NOT chat == 123456`
   支持 `AND` / `OR` / `NOT` 与括号；字段：`time`、`size`、`chat`、`kind`、`conf`、`name`、`path`。
-- 结果列表支持低开销缩略图预览（复用 NTQQ 自带 Thumb 文件，240px 解码 + LRU 缓存）、
+- 结果列表支持**大窗格预览**：图片优先按原图解码（1024px，NTQQ 自带 Thumb 作回退）、
+  mp4/mov 优先复用 NTQQ 自带视频封面，封面缺失（如另存到 nt_data 之外的 filerecv 视频）
+  时用系统解码器抓取一帧，零外部依赖；结果缓存 LRU、
   右键打开文件/所在位置/复制路径、**导出 CSV**。
 - **本页所有操作均为预演，不会删除任何文件。**
 

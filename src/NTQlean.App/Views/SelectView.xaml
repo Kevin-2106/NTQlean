@@ -263,15 +263,16 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <TextBlock Text="预览" Style="{StaticResource SectionTitle}"/>
-                <Border Grid.Row="1" Background="{StaticResource NtqSurfaceDeep}" Height="220"
-                        Margin="0,10,0,0" CornerRadius="4" BorderBrush="{StaticResource NtqStroke}" BorderThickness="1">
+                <Border Grid.Row="1" Background="{StaticResource NtqSurfaceDeep}"
+                        MinHeight="320" Margin="0,10,0,0" CornerRadius="4"
+                        BorderBrush="{StaticResource NtqStroke}" BorderThickness="1">
                     <Image x:Name="PreviewImage" Stretch="Uniform"/>
                 </Border>
-                <ScrollViewer Grid.Row="2" Margin="0,10,0,0" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer Grid.Row="2" MaxHeight="150" Margin="0,10,0,0" VerticalScrollBarVisibility="Auto">
                     <TextBlock x:Name="PreviewInfo" FontSize="11" TextWrapping="Wrap"
                                FontFamily="Consolas" Foreground="{StaticResource NtqTextSecondary}"/>
                 </ScrollViewer>

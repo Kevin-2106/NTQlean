@@ -5,31 +5,41 @@ using NTQlean.Core;
 namespace NTQlean.App;
 
 /// <summary>
-/// Low-overhead preview: reuses NTQQ's own Thumb files (Thumb/&lt;md5&gt;_720.jpg,
-/// Thumb/&lt;md5&gt;_0.png) instead of decoding originals, decodes at thumbnail
-/// resolution and caches results in a bounded LRU.
+/// Preview loader for the single selected row: decodes images from the
+/// original file at display resolution (NTQQ thumbs are only 240px-class),
+/// falls back to NTQQ's own Thumb files, and pulls video frames from the
+/// file itself via the OS decoder. Results cached in a small LRU — full
+/// resolution bitmaps are memory-heavy, so the capacity is low.
 /// </summary>
 public sealed class ThumbService
 {
+    private const int DecodeWidth = 1024;
     private readonly LruCache<BitmapSource> _cache;
 
-    public ThumbService(int capacity = 256) => _cache = new LruCache<BitmapSource>(capacity);
+    public ThumbService(int capacity = 16) => _cache = new LruCache<BitmapSource>(capacity);
 
-    public Task<BitmapSource?> GetAsync(SelectionRow row, string? ntDataRoot) => Task.Run(() =>
+    public async Task<BitmapSource?> GetAsync(SelectionRow row, string? ntDataRoot)
     {
         // stable cache key
         var key = row.AbsPath is { Length: > 0 } ? row.AbsPath : $"{ntDataRoot}|{row.RelPath}|{row.FileName}";
         if (_cache.TryGet(key, out var cached)) return cached;
 
+        BitmapSource? bmp = null;
         foreach (var path in CandidatePaths(row, ntDataRoot))
         {
-            var bmp = TryDecode(path);
-            if (bmp is null) continue;
-            _cache.Set(key, bmp);
-            return bmp;
+            bmp = TryDecode(path);
+            if (bmp is not null) break;
         }
-        return null;
-    });
+
+        // Videos stored outside nt_data (filerecv / save-as) have no NTQQ
+        // cover file — grab a frame with the OS decoder instead.
+        if (bmp is null && row.Kind == "video" &&
+            row.AbsPath is { Length: > 0 } && File.Exists(row.AbsPath))
+            bmp = await VideoFrameGrabber.GrabAsync(row.AbsPath);
+
+        if (bmp is not null) _cache.Set(key, bmp);
+        return bmp;
+    }
 
     private static IEnumerable<string> CandidatePaths(SelectionRow row, string? ntRoot)
     {
@@ -37,8 +47,12 @@ public sealed class ThumbService
         var name = row.FileName ?? "";
         var ntDataRoot = ntRoot ?? "";
 
-        string Local(string relPath) =>
-            Path.Combine(ntDataRoot, relPath.Replace('/', Path.DirectorySeparatorChar));
+        // Images: the original decodes to display resolution — thumbs are too
+        // blurry for a large pane and there is no reason to cap by file size
+        // (DecodePixelWidth bounds memory regardless of the source).
+        if (row.Kind == "image" &&
+            row.AbsPath is { Length: > 0 } && File.Exists(row.AbsPath))
+            yield return row.AbsPath;
 
         foreach (var candidate in ThumbnailLocator.Candidates(rel, row.ThumbRel, name))
         {
@@ -48,16 +62,10 @@ public sealed class ThumbService
             }
             else if (ntDataRoot.Length > 0)
             {
-                var p = Local(candidate);
+                var p = Path.Combine(ntDataRoot, candidate.Replace('/', Path.DirectorySeparatorChar));
                 if (File.Exists(p)) yield return p;
             }
         }
-
-        // fall back to the original only for small images (videos would be huge)
-        if (row.AbsPath is { Length: > 0 } && File.Exists(row.AbsPath) &&
-            row.Kind == "image" &&
-            (row.ActualSize ?? row.SizeBytes ?? 0) <= 4 * 1024 * 1024)
-            yield return row.AbsPath;
     }
 
     private static BitmapSource? TryDecode(string path)
@@ -68,7 +76,7 @@ public sealed class ThumbService
                 FileShare.ReadWrite | FileShare.Delete);
             var bmp = new BitmapImage();
             bmp.BeginInit();
-            bmp.DecodePixelWidth = 240;
+            bmp.DecodePixelWidth = DecodeWidth;
             bmp.CacheOption = BitmapCacheOption.OnLoad;
             bmp.StreamSource = fs;
             bmp.EndInit();

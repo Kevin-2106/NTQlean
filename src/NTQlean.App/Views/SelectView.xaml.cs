@@ -11,7 +11,7 @@ public partial class SelectView : UserControl
     private SelectionResult? _selection;
     private CleanupPlan? _plan;
     private readonly HashSet<string> _excludedChats = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ThumbService _thumbs = new(256);
+    private readonly ThumbService _thumbs = new(16);
 
     public SelectView()
     {
