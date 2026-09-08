@@ -61,6 +61,10 @@ internal static class SelectCommand
         var selection = SelectionEngine.Query(indexPath, options);
         var plan = CleanupPlan.FromSelection(selection, indexPath, expr);
 
+        if (includeOrphans && timeTo is null)
+            ProbeLog.Info($"孤儿时间上限默认为一周前（{SelectionEngine.DefaultOrphanCutoff():yyyy-MM-dd}）：索引未合并 WAL，" +
+                          "最近收到的文件可能被误判为孤儿；用 --to 可显式覆盖。");
+
         Console.WriteLine(plan.ToSummaryText());
 
         var reportPath = Path.Combine(workspaceDir, "reports",

@@ -16,6 +16,10 @@ public partial class SelectView : UserControl
     public SelectView()
     {
         InitializeComponent();
+        // WAL safety: records for freshly received files may still sit in QQ's
+        // -wal files, invisible to the index → new files look like orphans.
+        // Default the upper bound to one week ago; the user can change it.
+        DateTo.SelectedDate = DateTime.Today.AddDays(-7);
         AppState.IndexBuilt += () => Dispatcher.BeginInvoke(LoadChats);
     }
 

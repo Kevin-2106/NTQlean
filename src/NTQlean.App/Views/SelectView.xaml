@@ -56,6 +56,8 @@
                         <ui:Button Content="去年" Click="OnPresetLastYear" Margin="0,0,6,6"/>
                         <ui:Button Content="全部" Click="OnPresetAll" Margin="0,0,0,6"/>
                     </WrapPanel>
+                    <TextBlock Style="{StaticResource HintText}" Margin="0,0,0,10"
+                               Text="默认截止一周前：最近收到的数据可能还在 QQ 的 WAL 文件里（尚未写入主数据库，索引看不到引用），新文件会被误判为孤儿。孤儿筛选在没有设置「至」时也始终排除最近一周的文件；如确有必要可手动修改「至」。"/>
 
                     <TextBlock Text="大小范围（MB）" Style="{StaticResource FormLabel}"/>
                     <Grid>

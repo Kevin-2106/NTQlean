@@ -82,6 +82,14 @@ public sealed class SelectionResult
 /// </summary>
 public static class SelectionEngine
 {
+    /// <summary>
+    /// Default upper bound for orphan selection when TimeTo is unset: one week.
+    /// The index is built from decrypted main-db copies without merging WAL
+    /// frames, so records for recently received files may be invisible and
+    /// those files get misclassified as orphans. Explicit TimeTo overrides.
+    /// </summary>
+    public static DateTimeOffset DefaultOrphanCutoff() => DateTimeOffset.Now - TimeSpan.FromDays(7);
+
     public static SelectionResult Query(string indexPath, SelectionOptions options)
     {
         var where = BuildWhere(options);
@@ -146,7 +154,12 @@ public static class SelectionEngine
             if (options.Kinds.Count > 0)
                 orphanWhere.Add($"domain IN ({QuoteList(options.Kinds.Select(KindToDomain))})");
             if (options.TimeFrom is { } of) orphanWhere.Add($"mtime >= {of}");
-            if (options.TimeTo is { } ot) orphanWhere.Add($"mtime <= {ot}");
+            // WAL safety: records for freshly received files can still live in QQ's
+            // -wal files (frames are not merged into the decrypted copies), so such
+            // files look unreferenced. Without an explicit upper bound, cap orphans
+            // at the recent-file margin; a caller-set TimeTo always wins.
+            var orphanTo = options.TimeTo ?? DefaultOrphanCutoff().ToUnixTimeSeconds();
+            orphanWhere.Add($"mtime <= {orphanTo}");
             if (options.SizeMin is { } omin) orphanWhere.Add($"size >= {omin}");
             if (options.SizeMax is { } omax) orphanWhere.Add($"size <= {omax}");
             if (!options.IncludeReferencedOrphans) orphanWhere.Add("ref_count = 0");
