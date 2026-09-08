@@ -103,6 +103,7 @@ public partial class SelectView : UserControl
         FilterProgress.Visibility = Visibility.Visible;
         ResultStats.Text = "正在查询索引并生成预演…";
         MainWindow.SetBusy(true, "筛选中 …");
+        NtMsgScanBar.IsOpen = COrphan.IsChecked == true && !SelectionEngine.IsNtMsgScanned(IndexPath);
         try
         {
             var path = IndexPath;

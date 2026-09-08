@@ -155,6 +155,7 @@ public static partial class MediaIndexBuilder
 
         // Optional: cross-reference orphan md5s against decrypted nt_msg bodies.
         var refCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var ntMsgScanned = false;
         if (!string.IsNullOrEmpty(ntMsgPlainPath) && File.Exists(ntMsgPlainPath))
         {
             var md5Set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -167,6 +168,7 @@ public static partial class MediaIndexBuilder
             try
             {
                 var stats = NtMsgRefScanner.Scan(ntMsgPlainPath, index, md5Set, progress);
+                ntMsgScanned = true;
                 progress?.Report($"nt_msg 扫描完成: {stats.RowsScanned:N0} 行 / {stats.BytesScanned / 1048576.0:F0} MB，" +
                                  $"命中 {stats.DistinctHits:N0} 个文件，跳过坏行 {stats.RowsSkipped:N0}");
                 using var cmd = index.CreateCommand();
@@ -180,18 +182,19 @@ public static partial class MediaIndexBuilder
             }
         }
 
+        // A file counts as "claimed" (kept out of orphans) only when a DB record's
+        // own path resolved to it (exact/strong). Name-only (heuristic) matches are
+        // mostly stale filerecv/save-as bookkeeping — ~40% of files_in_chat rows
+        // carry no path at all — and must not hide real cleanup candidates from the
+        // orphan set. Whether a chat message still references an orphan is decided
+        // by the nt_msg md5 scan (ref_count), not by these rows.
         Exec(index, "CREATE TABLE orphan_nt_files(rel_path TEXT PRIMARY KEY, name TEXT, size INTEGER, " +
                     "mtime INTEGER, domain TEXT, ref_count INTEGER)");
         var referenced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         using (var cmd = index.CreateCommand())
         {
-            cmd.CommandText = "SELECT rel_path FROM media WHERE rel_path <> ''";
-            using var r = cmd.ExecuteReader();
-            while (r.Read()) referenced.Add(r.GetString(0));
-        }
-        using (var cmd = index.CreateCommand())
-        {
-            cmd.CommandText = "SELECT file_name FROM media WHERE rel_path = '' AND file_name <> ''";
+            cmd.CommandText = "SELECT rel_path FROM media WHERE rel_path <> '' " +
+                              "AND confidence IN ('exact','strong')";
             using var r = cmd.ExecuteReader();
             while (r.Read()) referenced.Add(r.GetString(0));
         }
@@ -241,6 +244,10 @@ public static partial class MediaIndexBuilder
 
             meta.Parameters["$k"].Value = "nt_data_root";
             meta.Parameters["$v"].Value = Path.GetFullPath(ntDataDir);
+            meta.ExecuteNonQuery();
+
+            meta.Parameters["$k"].Value = "nt_msg_scanned";
+            meta.Parameters["$v"].Value = ntMsgScanned ? "1" : "0";
             meta.ExecuteNonQuery();
         }
         tx.Commit();
@@ -312,6 +319,24 @@ public static partial class MediaIndexBuilder
             summary.MediaRows++;
             summary.Resolved++;
         }
+    }
+
+    /// <summary>
+    /// Normalizes a DB-recorded media path to an nt_data-relative path.
+    /// Observed formats: "nt_data\Pic\...", "\&lt;uin&gt;\nt_qq\nt_data\Pic\..."
+    /// (root-relative, often with an empty drive), "Pic\...", and empty strings
+    /// (~40% of files_in_chat rows). Returns "" when nothing usable remains.
+    /// </summary>
+    internal static string NormalizeRelPath(string? raw)
+    {
+        var candidate = raw?.Trim().Replace('\\', '/') ?? "";
+        if (candidate.StartsWith('/')) candidate = candidate.TrimStart('/');
+        var marker = "/nt_qq/nt_data/";
+        var idx = candidate.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0) candidate = candidate[(idx + marker.Length)..];
+        else if (candidate.StartsWith("nt_data/", StringComparison.OrdinalIgnoreCase))
+            candidate = candidate["nt_data/".Length..];
+        return candidate;
     }
 
     /// <summary>Tables that look like media metadata (have the 45402/45403/45405 signature).</summary>
@@ -436,9 +461,7 @@ public static partial class MediaIndexBuilder
             long fileMtime = -1;
             var confidence = "missing";
 
-            var candidateRel = relPathInDb?.Trim().Replace('\\', '/') ?? "";
-            if (candidateRel.StartsWith("nt_data/", StringComparison.OrdinalIgnoreCase))
-                candidateRel = candidateRel["nt_data/".Length..];
+            var candidateRel = NormalizeRelPath(relPathInDb);
             if (candidateRel.Length > 0)
             {
                 var abs = Path.Combine(ntDataDir, candidateRel.Replace('/', Path.DirectorySeparatorChar));

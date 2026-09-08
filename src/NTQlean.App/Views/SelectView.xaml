@@ -28,11 +28,16 @@
                     </WrapPanel>
 
                     <TextBlock Text="置信度" Style="{StaticResource FormLabel}"/>
-                    <CheckBox x:Name="CExact" Content="exact（路径与大小均吻合）" IsChecked="True" Margin="0,3"/>
-                    <CheckBox x:Name="CStrong" Content="strong（路径吻合，大小不一致）" IsChecked="True" Margin="0,3"/>
-                    <CheckBox x:Name="CHeuristic" Content="heuristic（路径已失效，按文件名匹配）" Margin="0,3"/>
-                    <CheckBox x:Name="COrphan" Content="orphan（无任何数据库记录的文件）" Margin="0,3"/>
-                    <CheckBox x:Name="CNoRefOrphan" Content="孤儿中排除聊天记录引用" IsChecked="True" Margin="0,3"/>
+                    <TextBlock Style="{StaticResource HintText}" Margin="0,0,0,4"
+                               Text="默认只清理孤儿缓存；filerecv 下载、另存为等有数据库有效记录的文件默认保留，需要时再手动勾选。"/>
+                    <CheckBox x:Name="CExact" Content="exact（路径与大小均吻合）" Margin="0,3"/>
+                    <CheckBox x:Name="CStrong" Content="strong（路径吻合，大小不一致）" Margin="0,3"/>
+                    <CheckBox x:Name="CHeuristic" Content="heuristic（仅文件名匹配，不作为有效引用）" Margin="0,3"/>
+                    <CheckBox x:Name="COrphan" Content="orphan（无有效引用——聊天缓存清理主目标）" IsChecked="True" Margin="0,3"/>
+                    <CheckBox x:Name="CNoRefOrphan" Content="排除聊天记录仍引用的孤儿（需已索引 nt_msg 大库）" IsChecked="True" Margin="0,3"/>
+                    <ui:InfoBar x:Name="NtMsgScanBar" Title="未索引 nt_msg，引用情况未知"
+                                Message="没有 nt_msg 引用扫描就无法确认孤儿是否仍显示在聊天记录中；结果可能包含聊天里仍可见的文件。到「密钥与索引」勾选 nt_msg 大库后重建索引可确认。"
+                                Severity="Warning" IsClosable="False" IsOpen="False" Margin="0,6,0,0"/>
 
                     <TextBlock Text="时间范围" Style="{StaticResource FormLabel}"/>
                     <Grid>

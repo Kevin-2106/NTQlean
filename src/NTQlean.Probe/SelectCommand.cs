@@ -65,6 +65,10 @@ internal static class SelectCommand
             ProbeLog.Info($"孤儿时间上限默认为一周前（{SelectionEngine.DefaultOrphanCutoff():yyyy-MM-dd}）：索引未合并 WAL，" +
                           "最近收到的文件可能被误判为孤儿；用 --to 可显式覆盖。");
 
+        if (includeOrphans && !SelectionEngine.IsNtMsgScanned(indexPath))
+            ProbeLog.Unconfirmed("索引未含 nt_msg 引用扫描（analyze --include-nt-msg 后重建）：无法确认孤儿是否仍被聊天记录引用，" +
+                                 "结果可能包含聊天中仍可见的文件。");
+
         Console.WriteLine(plan.ToSummaryText());
 
         var reportPath = Path.Combine(workspaceDir, "reports",

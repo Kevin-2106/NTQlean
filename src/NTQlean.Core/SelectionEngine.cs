@@ -90,6 +90,21 @@ public static class SelectionEngine
     /// </summary>
     public static DateTimeOffset DefaultOrphanCutoff() => DateTimeOffset.Now - TimeSpan.FromDays(7);
 
+    /// <summary>Whether the index was built with the nt_msg reference scan (meta key).</summary>
+    public static bool IsNtMsgScanned(string indexPath)
+    {
+        try
+        {
+            using var conn = NtqSqlite.OpenReadOnly(indexPath);
+            conn.Open();
+            return GetMeta(conn, "nt_msg_scanned") == "1";
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static SelectionResult Query(string indexPath, SelectionOptions options)
     {
         var where = BuildWhere(options);
