@@ -1,0 +1,51 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Publish GUI (self-contained win-x64)
+        shell: pwsh
+        run: |
+          $ver = "${{ github.ref_name }}" -replace '^v', ''
+          if (-not $ver) { $ver = '0.0.1' }
+          dotnet publish src\NTQlean.App\NTQlean.App.csproj -c Release -r win-x64 `
+            --self-contained true -p:Version=$ver -o stage\NTQlean
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item Start-NTQlean.bat stage\NTQlean\
+          Compress-Archive -Path stage\NTQlean `
+            -DestinationPath "NTQlean-v$ver-win-x64.zip"
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: NTQlean-win-x64
+          path: NTQlean-*-win-x64.zip
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: NTQlean-*-win-x64.zip
+          generate_notes: true
+          body: |
+            免安装版：解压后双击 `Start-NTQlean.bat`（或直接运行 `NTQlean.App.exe`）。
+            自包含发布，无需安装 .NET 运行时；要求 Windows 10/11 x64，QQ (NTQQ) 9.9.x。
+
+            > ⚠️ **免责声明**：本工具为非官方社区项目，与腾讯无关；仅限在本人设备上
+            > 清理本人账号数据。密钥提取（只读内存扫描）可能受 QQ 用户协议限制，
+            > 合规责任由使用者自行承担。软件按 AS-IS 提供，使用前请备份重要数据。
+            > 完整条款见仓库 README 与 LICENSE。

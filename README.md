@@ -58,7 +58,13 @@ account restrictions, or other consequences.
 
 ## 快速开始
 
-要求：Windows 10/11 x64、[.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)、NTQQ（QQ 9.9.x）。
+要求：Windows 10/11 x64、NTQQ（QQ 9.9.x）。
+
+**方式一（推荐）：直接用 Release 免安装包**——从
+[Releases](https://github.com/Kevin-2106/NTQlean/releases) 下载最新的
+`NTQlean-v*-win-x64.zip`，解压后双击 `Start-NTQlean.bat`（自包含发布，无需安装 .NET）。
+
+**方式二：从源码构建**（需要 [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)）：
 
 ```powershell
 git clone https://github.com/Kevin-2106/NTQlean.git
