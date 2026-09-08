@@ -33,8 +33,9 @@ public sealed class CleanupPlan
         sb.AppendLine();
         sb.AppendLine("按类型:");
         foreach (var (k, v) in ByKind.OrderByDescending(kv => kv.Value)) sb.AppendLine($"  {k,-8} {v / 1024.0 / 1024:F1} MB");
-        sb.AppendLine("按置信度:");
-        foreach (var (k, v) in ByConfidence.OrderByDescending(kv => kv.Value)) sb.AppendLine($"  {k,-10} {v / 1024.0 / 1024:F1} MB");
+        sb.AppendLine("按引用可信度:");
+        foreach (var (k, v) in ByConfidence.OrderByDescending(kv => kv.Value))
+            sb.AppendLine($"  {ConfidenceLabels.Of(k),-8} {v / 1024.0 / 1024:F1} MB");
         sb.AppendLine($"会话数: {ByChat.Count}");
         return sb.ToString();
     }

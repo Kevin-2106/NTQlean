@@ -60,7 +60,10 @@ static int PrintUsage()
           --chat / --exclude-chat <ids>   Chat id include/exclude (NOT)
           --from / --to <date>   Time range (yyyy-MM-dd)
           --size-min / --size-max <n>     Size range (supports KB/MB/GB suffix)
-          --conf <list>          exact,strong,heuristic (default: exact,strong)
+          --conf <list>          exact(记录吻合),strong(路径吻合),heuristic(仅同名)
+                                 (default: exact,strong)
+          --include-orphans      Include unclaimed files (无主文件, cleanup main
+                                 target; unreferenced by any valid DB record)
           --json <path>          Also save the dry-run report here
 
         open-db options:

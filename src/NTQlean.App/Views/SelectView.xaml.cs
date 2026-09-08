@@ -153,7 +153,7 @@ public partial class SelectView : UserControl
         var root = GetNtDataRoot();
         PreviewInfo.Text =
             $"路径: {row.Row.AbsPath}\n大小: {row.Row.ActualSize ?? row.Row.SizeBytes:N0} 字节\n" +
-            $"时间: {row.TimeText}\n置信度: {row.Row.Confidence}\n来源: {row.Row.Source}/{row.Row.SourceTable}";
+            $"时间: {row.TimeText}\n引用可信度: {row.Confidence}\n来源: {row.Row.Source}/{row.Row.SourceTable}";
 
         var target = row;
         Task.Run(async () =>
@@ -344,7 +344,7 @@ public sealed class ResultRow
     public string TimeText => Row.MsgTime is { } t
         ? DateTimeOffset.FromUnixTimeSeconds(t).LocalDateTime.ToString("yyyy-MM-dd HH:mm")
         : "—";
-    public string Confidence => Row.Confidence;
+    public string Confidence => ConfidenceLabels.Of(Row.Confidence);
     public string MsgRefsText => Row.Confidence == "orphan"
         ? (Row.MsgRefs > 0 ? $"{Row.MsgRefs} 条" : "0")
         : "—";

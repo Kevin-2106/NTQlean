@@ -133,36 +133,11 @@ public static class SelectionEngine
             rows.Add(row);
         }
 
-        using (var cmd = conn.CreateCommand())
-        {
-            cmd.CommandText = $"""
-                SELECT m.item_id, m.kind, m.chat_id, c.display_name, m.chat_type,
-                       m.file_name, m.rel_path, m.abs_path, m.thumb_rel,
-                       m.size_db, m.size_bytes, m.actual_size,
-                       m.msg_time, m.time_source, m.md5, m.uuid,
-                       m.confidence, m.source, m.source_table, m.msg_id
-                FROM media m LEFT JOIN chats c ON c.chat_id = m.chat_id
-                WHERE {where}
-                ORDER BY COALESCE(m.actual_size, m.size_bytes, 0) DESC
-                """;
-            using var r = cmd.ExecuteReader();
-            while (r.Read())
-            {
-                var row = new SelectionRow(
-                    r.GetInt64(0), r.GetString(1), r.IsDBNull(2) ? "" : r.GetString(2),
-                    r.IsDBNull(3) ? null : r.GetString(3), r.IsDBNull(4) ? null : r.GetInt64(4),
-                    r.GetString(5), r.GetString(6), r.GetString(7), r.GetString(8),
-                    r.IsDBNull(9) ? null : r.GetInt64(9), r.IsDBNull(10) ? null : r.GetInt64(10),
-                    r.IsDBNull(11) ? null : r.GetInt64(11), r.IsDBNull(12) ? null : r.GetInt64(12),
-                    r.GetString(13), r.IsDBNull(14) ? null : r.GetString(14),
-                    r.IsDBNull(15) ? null : r.GetString(15), r.GetString(16), r.GetString(17),
-                    r.GetString(18), r.IsDBNull(19) ? null : r.GetInt64(19));
-                Accumulate(row);
-            }
-        }
-
-        // Orphan (unreferenced) files, when explicitly included. They carry
-        // confidence "orphan" and no chat; the executor's allowlist still applies.
+        // Unclaimed (orphan) files, when explicitly included. They carry confidence
+        // "orphan" and no chat; the executor's allowlist still applies. They are
+        // materialized before the media rows so the loop below can skip weak
+        // same-name rows pointing at the same file — one row per file.
+        var orphanRows = new List<SelectionRow>();
         if (options.IncludeOrphans)
         {
             var orphanWhere = new List<string>();
@@ -196,16 +171,53 @@ public static class SelectionEngine
                 var refs = r.GetInt64(5);
                 var kind = DomainToKind(domain);
                 var abs = string.IsNullOrEmpty(ntRoot) ? "" : Path.Combine(ntRoot, rel.Replace('/', Path.DirectorySeparatorChar));
-                var row = new SelectionRow(
-                    -1L - rows.Count, kind, "", null, null,
+                orphanRows.Add(new SelectionRow(
+                    -1L - orphanRows.Count, kind, "", null, null,
                     name, rel, File.Exists(abs) ? abs : "", "",
                     size, size, File.Exists(abs) ? size : null,
                     mtime, "file", null, null,
                     "orphan", "orphan", "orphan_nt_files", null,
-                    refs);
+                    refs));
+            }
+        }
+
+        // One row per file: seed the seen-set with unclaimed rel_paths, then skip
+        // any media row whose rel_path is already taken (by an unclaimed row or by
+        // another media row — several records often reference the same file, and
+        // duplicates would double-count bytes and delete one file twice).
+        var seenFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var o in orphanRows) seenFiles.Add(o.RelPath);
+
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = $"""
+                SELECT m.item_id, m.kind, m.chat_id, c.display_name, m.chat_type,
+                       m.file_name, m.rel_path, m.abs_path, m.thumb_rel,
+                       m.size_db, m.size_bytes, m.actual_size,
+                       m.msg_time, m.time_source, m.md5, m.uuid,
+                       m.confidence, m.source, m.source_table, m.msg_id
+                FROM media m LEFT JOIN chats c ON c.chat_id = m.chat_id
+                WHERE {where}
+                ORDER BY COALESCE(m.actual_size, m.size_bytes, 0) DESC
+                """;
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                var row = new SelectionRow(
+                    r.GetInt64(0), r.GetString(1), r.IsDBNull(2) ? "" : r.GetString(2),
+                    r.IsDBNull(3) ? null : r.GetString(3), r.IsDBNull(4) ? null : r.GetInt64(4),
+                    r.GetString(5), r.GetString(6), r.GetString(7), r.GetString(8),
+                    r.IsDBNull(9) ? null : r.GetInt64(9), r.IsDBNull(10) ? null : r.GetInt64(10),
+                    r.IsDBNull(11) ? null : r.GetInt64(11), r.IsDBNull(12) ? null : r.GetInt64(12),
+                    r.GetString(13), r.IsDBNull(14) ? null : r.GetString(14),
+                    r.IsDBNull(15) ? null : r.GetString(15), r.GetString(16), r.GetString(17),
+                    r.GetString(18), r.IsDBNull(19) ? null : r.GetInt64(19));
+                if (!string.IsNullOrEmpty(row.RelPath) && !seenFiles.Add(row.RelPath)) continue;
                 Accumulate(row);
             }
         }
+
+        foreach (var orphanRow in orphanRows) Accumulate(orphanRow);
 
         return new SelectionResult
         {
