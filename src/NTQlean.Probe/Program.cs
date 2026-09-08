@@ -64,6 +64,9 @@ static int PrintUsage()
                                  (default: exact,strong)
           --include-orphans      Include unclaimed files (无主文件, cleanup main
                                  target; unreferenced by any valid DB record)
+          --exclude-file <path>  Never select this file (rel or abs path; repeatable)
+          --exclude-from <file>  Exclusion list, one path per line, '#'-comments;
+                                 the GUI keep-list lives in <workspace>/excluded-files.txt
           --json <path>          Also save the dry-run report here
 
         open-db options:

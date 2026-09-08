@@ -11,6 +11,9 @@ public sealed class Workspace
     public string IndexPath => Path.Combine(Root, "index.db");
     public string ReportsDir => Path.Combine(Root, "reports");
 
+    /// <summary>Persistent keep-list: one rel/abs path per line, '#'-comments allowed.</summary>
+    public string ExcludedFilesPath => Path.Combine(Root, "excluded-files.txt");
+
     public Workspace(string root)
     {
         Root = Path.GetFullPath(root);

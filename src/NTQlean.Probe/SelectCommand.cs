@@ -9,6 +9,7 @@ internal static class SelectCommand
         var includeChats = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var excludeChats = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var confs = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "exact", "strong" };
+        var excludedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         long? timeFrom = null, timeTo = null, sizeMin = null, sizeMax = null;
         var chatFilterActive = false;
         var includeOrphans = false;
@@ -24,6 +25,14 @@ internal static class SelectCommand
                 case "--chat": includeChats.UnionWith(args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries)); chatFilterActive = true; break;
                 case "--exclude-chat": excludeChats.UnionWith(args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries)); break;
                 case "--conf": confs.Clear(); confs.UnionWith(args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries)); break;
+                case "--exclude-file": excludedFiles.Add(args[++i]); break;
+                case "--exclude-from":
+                    foreach (var line in File.ReadAllLines(args[++i]))
+                    {
+                        var t = line.Trim();
+                        if (t.Length > 0 && !t.StartsWith('#')) excludedFiles.Add(t);
+                    }
+                    break;
                 case "--from": timeFrom = ParseDate(args[++i]); break;
                 case "--to": timeTo = ParseDate(args[++i]) + 86399; break;
                 case "--size-min": sizeMin = ParseSize(args[++i]); break;
@@ -38,11 +47,22 @@ internal static class SelectCommand
         {
             ProbeLog.Error("usage: select --workspace <dir> [--expr \"...\"] [--kind image,video] " +
                            "[--chat id1,id2] [--exclude-chat id] [--from 2025-01-01] [--to 2025-12-31] " +
-                           "[--size-min 10MB] [--size-max 1GB] [--conf exact,strong,heuristic] [--json out.json]");
+                           "[--size-min 10MB] [--size-max 1GB] [--conf exact,strong,heuristic] " +
+                           "[--exclude-file path|--exclude-from list.txt] [--include-orphans] [--json out.json]");
             return 1;
         }
 
         var indexPath = Path.Combine(workspaceDir, "index.db");
+
+        // The workspace keep-list (GUI「排除此文件」writes it) always applies,
+        // so CLI dry-runs can never disagree with what the GUI promised.
+        var keepList = Path.Combine(workspaceDir, "excluded-files.txt");
+        if (File.Exists(keepList))
+            foreach (var line in File.ReadAllLines(keepList))
+            {
+                var t = line.Trim();
+                if (t.Length > 0 && !t.StartsWith('#')) excludedFiles.Add(t);
+            }
         var options = new SelectionOptions
         {
             Kinds = kinds,
@@ -54,6 +74,7 @@ internal static class SelectCommand
             SizeMin = sizeMin,
             SizeMax = sizeMax,
             Expression = expr,
+            ExcludedFiles = excludedFiles,
             IncludeOrphans = includeOrphans,
             IncludeReferencedOrphans = includeRefOrphans,
         };

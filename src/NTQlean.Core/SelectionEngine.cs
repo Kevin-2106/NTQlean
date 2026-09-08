@@ -38,6 +38,13 @@ public sealed record SelectionOptions
     public string? Expression { get; init; }
 
     /// <summary>
+    /// Files the user marked as keepers (persistent per-workspace list).
+    /// Matched against rel_path (normalized to '/') and abs_path; excluded
+    /// rows never reach reports or cleanup plans.
+    /// </summary>
+    public HashSet<string> ExcludedFiles { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Include unreferenced (orphan) nt_data files. These have confidence
     /// "orphan" and no chat; they are only ever cleaned up with explicit
     /// user opt-in.
@@ -108,6 +115,7 @@ public static class SelectionEngine
     public static SelectionResult Query(string indexPath, SelectionOptions options)
     {
         var where = BuildWhere(options);
+        var excluded = options.ExcludedFiles;
         using var conn = NtqSqlite.OpenReadOnly(indexPath);
         conn.Open();
 
@@ -171,6 +179,8 @@ public static class SelectionEngine
                 var refs = r.GetInt64(5);
                 var kind = DomainToKind(domain);
                 var abs = string.IsNullOrEmpty(ntRoot) ? "" : Path.Combine(ntRoot, rel.Replace('/', Path.DirectorySeparatorChar));
+                if (excluded.Count > 0 && (excluded.Contains(rel) ||
+                    (abs.Length > 0 && excluded.Contains(abs)))) continue;
                 orphanRows.Add(new SelectionRow(
                     -1L - orphanRows.Count, kind, "", null, null,
                     name, rel, File.Exists(abs) ? abs : "", "",
@@ -212,6 +222,8 @@ public static class SelectionEngine
                     r.GetString(13), r.IsDBNull(14) ? null : r.GetString(14),
                     r.IsDBNull(15) ? null : r.GetString(15), r.GetString(16), r.GetString(17),
                     r.GetString(18), r.IsDBNull(19) ? null : r.GetInt64(19));
+                if (!string.IsNullOrEmpty(row.RelPath) && excluded.Contains(row.RelPath)) continue;
+                if (!string.IsNullOrEmpty(row.AbsPath) && excluded.Contains(row.AbsPath)) continue;
                 if (!string.IsNullOrEmpty(row.RelPath) && !seenFiles.Add(row.RelPath)) continue;
                 Accumulate(row);
             }

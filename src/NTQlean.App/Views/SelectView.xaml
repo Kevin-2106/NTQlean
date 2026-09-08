@@ -212,13 +212,19 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                     <TextBlock x:Name="ResultStats" Text="尚未筛选" Foreground="{StaticResource NtqTextSecondary}"/>
                     <ProgressBar x:Name="FilterProgress" Height="4" Margin="0,6,16,0"
                                  IsIndeterminate="True" Visibility="Collapsed"/>
                 </StackPanel>
-                <ui:Button Grid.Column="1" x:Name="ExportCsvButton" Content="导出 CSV"
+                <ui:Button Grid.Column="1" x:Name="ClearFileExcludesButton" Content="清空文件排除"
+                           Visibility="Collapsed" Margin="0,0,8,0" VerticalAlignment="Center"
+                           ToolTipService.InitialShowDelay="60"
+                           ToolTip="排除名单持久保存在工作区 excluded-files.txt，跨筛选生效；清空后立即刷新结果。"
+                           Click="OnClearFileExcludesClick"/>
+                <ui:Button Grid.Column="2" x:Name="ExportCsvButton" Content="导出 CSV"
                            Icon="{ui:SymbolIcon Save24}" VerticalAlignment="Center" Click="OnExportCsvClick"/>
             </Grid>
 
@@ -238,6 +244,7 @@
                                 <MenuItem Header="打开文件" CommandParameter="{Binding}" Click="OnOpenFileClick"/>
                                 <MenuItem Header="打开所在位置" CommandParameter="{Binding}" Click="OnOpenLocationClick"/>
                                 <MenuItem Header="复制完整路径" CommandParameter="{Binding}" Click="OnCopyPathClick"/>
+                                <MenuItem Header="排除此文件（保留，不再选中）" CommandParameter="{Binding}" Click="OnExcludeFileClick"/>
                             </ContextMenu>
                         </DataGrid.Resources>
                         <DataGrid.RowStyle>

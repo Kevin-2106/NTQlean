@@ -11,6 +11,7 @@ public partial class SelectView : UserControl
     private SelectionResult? _selection;
     private CleanupPlan? _plan;
     private readonly HashSet<string> _excludedChats = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _excludedFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly ThumbService _thumbs = new(16);
 
     public SelectView()
@@ -28,6 +29,7 @@ public partial class SelectView : UserControl
     private void LoadChats()
     {
         if (IndexPath is null || !File.Exists(IndexPath)) return;
+        LoadExcludedFiles();
         _excludedChats.IntersectWith(SelectionEngine.QueryChats(IndexPath).Select(c => c.ChatId));
         ChatGrid.ItemsSource = SelectionEngine.QueryChats(IndexPath)
             .Select(c => new ChatRow(c.ChatId, c.DisplayName, c.Items, c.Bytes,
@@ -68,6 +70,7 @@ public partial class SelectView : UserControl
             SizeMin = sizeMin,
             SizeMax = sizeMax,
             Expression = string.IsNullOrWhiteSpace(ExprBox.Text) ? null : ExprBox.Text,
+            ExcludedFiles = _excludedFiles,
             IncludeOrphans = COrphan.IsChecked == true,
             IncludeReferencedOrphans = CNoRefOrphan.IsChecked != true,
         };
@@ -242,6 +245,76 @@ public partial class SelectView : UserControl
                 MessageBoxButton.OK, MessageBoxImage.Error);
             return false;
         }
+    }
+
+    // ── 文件排除（保留名单） ──
+    private void LoadExcludedFiles()
+    {
+        _excludedFiles.Clear();
+        var path = AppState.Workspace?.ExcludedFilesPath;
+        if (path is null || !File.Exists(path)) return;
+        try
+        {
+            foreach (var line in File.ReadAllLines(path))
+            {
+                var t = line.Trim();
+                if (t.Length > 0 && !t.StartsWith('#')) _excludedFiles.Add(t);
+            }
+        }
+        catch (IOException) { /* unreadable list: start empty rather than fail the page */ }
+        RefreshFileExcludeUi();
+    }
+
+    private void SaveExcludedFiles()
+    {
+        var path = AppState.Workspace?.ExcludedFilesPath;
+        if (path is null) return;
+        try
+        {
+            File.WriteAllLines(path,
+                _excludedFiles.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+        }
+        catch (IOException) { /* persistence is best-effort; the in-memory set still applies */ }
+    }
+
+    private void RefreshFileExcludeUi()
+    {
+        ClearFileExcludesButton.Content = _excludedFiles.Count == 0
+            ? "清空文件排除"
+            : $"清空文件排除（{_excludedFiles.Count:N0}）";
+        ClearFileExcludesButton.Visibility = _excludedFiles.Count == 0
+            ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void OnExcludeFileClick(object sender, RoutedEventArgs e)
+    {
+        if (MenuRow(sender) is not { } row) return;
+        var key = !string.IsNullOrEmpty(row.Row.RelPath)
+            ? row.Row.RelPath.Replace('\\', '/')
+            : row.Row.AbsPath ?? "";
+        if (key.Length == 0)
+        {
+            MessageBox.Show("该条目没有可用的路径标识，无法排除。", "NTQlean",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        if (_excludedFiles.Add(key))
+        {
+            SaveExcludedFiles();
+            RefreshFileExcludeUi();
+            MainWindow.SetStatus("已加入保留名单，正在刷新结果…");
+            OnApplyFilterClick(sender, e); // re-run so the plan/report match the visible rows
+        }
+    }
+
+    private void OnClearFileExcludesClick(object sender, RoutedEventArgs e)
+    {
+        if (_excludedFiles.Count == 0) return;
+        _excludedFiles.Clear();
+        SaveExcludedFiles();
+        RefreshFileExcludeUi();
+        MainWindow.SetStatus("文件排除名单已清空，正在刷新结果…");
+        OnApplyFilterClick(sender, e);
     }
 
     // ── 会话排除 (= NOT) ──
